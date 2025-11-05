@@ -44,7 +44,7 @@ export const SpeedGauge = memo(function SpeedGauge({
       : 0;
 
   return (
-    <div className="bg-background/95 backdrop-blur-sm border rounded-lg p-2 shadow-lg">
+    <div className="p-2">
       <div className="text-xs font-semibold mb-1 truncate max-w-[80px]" title={boat.name}>
         {boat.name}
       </div>

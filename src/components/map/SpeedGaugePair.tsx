@@ -5,6 +5,7 @@ import { SpeedGauge } from './SpeedGauge';
 interface SpeedGaugePairProps {
   boats: BoatTrack[];
   currentTime: number | null;
+  height?: number; // Dynamic height
 }
 
 /**
@@ -19,6 +20,7 @@ function getSogRange(boats: BoatTrack[]): { min: number; max: number } {
 export const SpeedGaugePair = memo(function SpeedGaugePair({
   boats,
   currentTime,
+  height = 120,
 }: SpeedGaugePairProps) {
   const sogRange = useMemo(() => getSogRange(boats), [boats]);
 
@@ -30,7 +32,7 @@ export const SpeedGaugePair = memo(function SpeedGaugePair({
   }
 
   return (
-    <div className="absolute left-4 top-[380px] z-[1000] flex gap-2">
+    <div className="flex gap-2">
       {boatsToShow.map((boat) => (
         <SpeedGauge
           key={boat.id}
@@ -38,6 +40,7 @@ export const SpeedGaugePair = memo(function SpeedGaugePair({
           currentTime={currentTime}
           sogRange={sogRange}
           showAverage30s={true}
+          height={height - 40} // Account for text and padding
         />
       ))}
     </div>

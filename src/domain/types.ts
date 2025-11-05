@@ -22,3 +22,16 @@ export type RaceDataset = {
   tMin: number;
   tMax: number;
 };
+
+export type PolarDataPoint = {
+  twa: number; // True Wind Angle (degrees)
+  tws: number; // True Wind Speed (knots)
+  sog: number; // Speed Over Ground (knots)
+};
+
+export type PolarData = PolarDataPoint[];
+
+export type PolarCurve = {
+  tws: number; // True Wind Speed
+  points: Array<{ twa: number; sog: number }>; // Points for this TWS curve
+};

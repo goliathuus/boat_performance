@@ -8,12 +8,12 @@ import { Toggle } from '@/components/ui/toggle';
 interface WindRoseProps {
   boats: BoatTrack[];
   currentTime: number | null;
+  size?: number; // Dynamic size
 }
 
-const ROSE_SIZE = 180; // Size in pixels
-const ROSE_RADIUS = ROSE_SIZE / 2 - 20; // Inner radius for arrows
-
-export const WindRose = memo(function WindRose({ boats, currentTime }: WindRoseProps) {
+export const WindRose = memo(function WindRose({ boats, currentTime, size = 180 }: WindRoseProps) {
+  const ROSE_SIZE = size;
+  const ROSE_RADIUS = ROSE_SIZE / 2 - 20; // Inner radius for arrows
   const windAngleMode = useRaceStore((state) => state.windAngleMode);
   const showTWD = useRaceStore((state) => state.showTWD);
   const setWindAngleMode = useRaceStore((state) => state.setWindAngleMode);
@@ -46,9 +46,9 @@ export const WindRose = memo(function WindRose({ boats, currentTime }: WindRoseP
   const hasData = boatWindData.some((d) => d.angle !== null);
 
   return (
-    <div className="absolute top-4 left-4 z-[1000] bg-background/95 backdrop-blur-sm border rounded-2xl shadow-lg p-4">
+    <div className="p-3">
       {/* Controls */}
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-2">
         <div className="flex gap-1 border rounded-md p-0.5">
           <Button
             size="sm"
@@ -88,9 +88,31 @@ export const WindRose = memo(function WindRose({ boats, currentTime }: WindRoseP
             r={ROSE_RADIUS}
             fill="none"
             stroke="currentColor"
-            strokeWidth="1"
-            className="text-border opacity-30"
+            strokeWidth="1.5"
+            className="text-foreground opacity-80"
           />
+
+          {/* Graduation marks on circle (every 30 degrees, no numbers) */}
+          {Array.from({ length: 12 }, (_, i) => {
+            const angle = i * 30; // Every 30 degrees
+            const rad = (angle * Math.PI) / 180;
+            const startX = ROSE_SIZE / 2 + Math.sin(rad) * ROSE_RADIUS;
+            const startY = ROSE_SIZE / 2 - Math.cos(rad) * ROSE_RADIUS;
+            const endX = ROSE_SIZE / 2 + Math.sin(rad) * (ROSE_RADIUS + 5);
+            const endY = ROSE_SIZE / 2 - Math.cos(rad) * (ROSE_RADIUS + 5);
+            return (
+              <line
+                key={`graduation-${i}`}
+                x1={startX}
+                y1={startY}
+                x2={endX}
+                y2={endY}
+                stroke="currentColor"
+                strokeWidth="1"
+                className="text-foreground opacity-60"
+              />
+            );
+          })}
 
           {/* Graduation circles */}
           <circle
@@ -333,22 +355,6 @@ export const WindRose = memo(function WindRose({ boats, currentTime }: WindRoseP
             <span className="text-xs text-muted-foreground">n/a</span>
           </div>
         )}
-      </div>
-
-      {/* Legend */}
-      <div className="mt-3 space-y-1">
-        {boatWindData.map(({ boat, angle }) => (
-          <div key={boat.id} className="flex items-center gap-2 text-xs">
-            <div
-              className="w-3 h-3 rounded-full shrink-0"
-              style={{ backgroundColor: boat.color }}
-            />
-            <span className="truncate">{boat.name}</span>
-            {angle === null && (
-              <span className="text-muted-foreground ml-auto">n/a</span>
-            )}
-          </div>
-        ))}
       </div>
     </div>
   );

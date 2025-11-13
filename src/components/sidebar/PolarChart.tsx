@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, memo } from 'react';
+import { useEffect, useState, useMemo, memo, useRef } from 'react';
 import type { BoatTrack } from '@/domain/types';
 import { interpolatePosition } from '@/domain/tracks';
 import { parsePolarFile, groupPolarDataByTWS, type PolarCurve } from '@/domain/parsing/polar';
@@ -16,6 +16,15 @@ export const PolarChart = memo(function PolarChart({ boats, currentTime, size = 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [visibleCurves, setVisibleCurves] = useState<Set<number>>(new Set()); // Track which TWS curves are visible
+  
+  // Zoom and pan state
+  const [zoom, setZoom] = useState(1.0);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [hoveredBoat, setHoveredBoat] = useState<{ boat: BoatTrack; sog: number; twa: number; x: number; y: number } | null>(null);
+  const [mousePosition, setMousePosition] = useState<{ x: number; y: number; sog: number; twa: number } | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   // Load and parse polar file
   useEffect(() => {
@@ -55,6 +64,95 @@ export const PolarChart = memo(function PolarChart({ boats, currentTime, size = 
       }
       return newSet;
     });
+  };
+
+  // Zoom handlers
+  const handleWheel = (e: React.WheelEvent<SVGSVGElement>) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    setZoom((prevZoom) => {
+      const newZoom = Math.max(0.5, Math.min(3.0, prevZoom + delta));
+      return newZoom;
+    });
+  };
+
+  // Pan handlers
+  const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (e.button === 0 && !e.shiftKey) { // Left mouse button, not shift
+      setIsDragging(true);
+      const rect = svgRef.current?.getBoundingClientRect();
+      if (rect) {
+        const svgX = e.clientX - rect.left;
+        const svgY = e.clientY - rect.top;
+        setDragStart({ 
+          x: svgX - pan.x, 
+          y: svgY - pan.y 
+        });
+      }
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const svgX = e.clientX - rect.left;
+    const svgY = e.clientY - rect.top;
+
+    if (isDragging) {
+      setPan({
+        x: svgX - dragStart.x,
+        y: svgY - dragStart.y,
+      });
+    } else {
+      // Calculate polar coordinates from mouse position
+      // Convert screen coordinates to chart coordinates accounting for zoom and pan
+      const chartX = (svgX - POLAR_CHART_SIZE / 2 - pan.x) / zoom + POLAR_CHART_SIZE / 2;
+      const chartY = (svgY - POLAR_CHART_SIZE / 2 - pan.y) / zoom + POLAR_CHART_SIZE / 2;
+
+      // Calculate distance from center and angle
+      const centerX = POLAR_CHART_SIZE / 2;
+      const centerY = POLAR_CHART_SIZE / 2;
+      const dx = chartX - centerX;
+      const dy = chartY - centerY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      // Calculate angle (0° is North, clockwise)
+      let angle = Math.atan2(dx, -dy) * (180 / Math.PI);
+      if (angle < 0) angle += 360;
+
+      // Calculate SOG from distance (normalized to maxSOG)
+      const normalizedRadius = distance / POLAR_CHART_RADIUS;
+      const sog = normalizedRadius * maxSOG;
+
+      // Only show cursor if within chart bounds
+      if (distance <= POLAR_CHART_RADIUS) {
+        setMousePosition({
+          x: svgX,
+          y: svgY,
+          sog: Math.max(0, sog),
+          twa: angle,
+        });
+      } else {
+        setMousePosition(null);
+      }
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+    setMousePosition(null);
+    setHoveredBoat(null);
+  };
+
+  // Reset zoom and pan
+  const resetView = () => {
+    setZoom(1.0);
+    setPan({ x: 0, y: 0 });
   };
 
   // Get current boat positions (SOG, TWA)
@@ -181,13 +279,46 @@ export const PolarChart = memo(function PolarChart({ boats, currentTime, size = 
   }
 
   return (
-    <div className="p-2 pt-0">
+    <div className="p-2 pt-0 relative">
+      {/* Zoom controls */}
+      <div className="absolute top-2 right-2 z-10 flex flex-col gap-1">
+        <button
+          onClick={() => setZoom((z) => Math.min(3.0, z + 0.2))}
+          className="w-6 h-6 bg-background/90 border rounded text-xs hover:bg-background"
+          title="Zoom in"
+        >
+          +
+        </button>
+        <button
+          onClick={() => setZoom((z) => Math.max(0.5, z - 0.2))}
+          className="w-6 h-6 bg-background/90 border rounded text-xs hover:bg-background"
+          title="Zoom out"
+        >
+          −
+        </button>
+        <button
+          onClick={resetView}
+          className="w-6 h-6 bg-background/90 border rounded text-xs hover:bg-background"
+          title="Reset view"
+        >
+          ⟲
+        </button>
+      </div>
+
       <svg
+        ref={svgRef}
         width={POLAR_CHART_SIZE}
         height={POLAR_CHART_SIZE}
         viewBox={`0 0 ${POLAR_CHART_SIZE} ${POLAR_CHART_SIZE}`}
-        className="overflow-visible"
+        className="overflow-visible cursor-move"
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
       >
+        {/* Transform group for zoom and pan */}
+        <g transform={`translate(${POLAR_CHART_SIZE / 2 + pan.x}, ${POLAR_CHART_SIZE / 2 + pan.y}) scale(${zoom}) translate(${-POLAR_CHART_SIZE / 2}, ${-POLAR_CHART_SIZE / 2})`}>
         {/* Cross axes (X and Y) */}
         <g>
           {/* Horizontal axis (X) */}
@@ -313,7 +444,11 @@ export const PolarChart = memo(function PolarChart({ boats, currentTime, size = 
           const [x, y] = polarToCartesian(radius, twa);
 
           return (
-            <g key={boat.id}>
+            <g
+              key={boat.id}
+              onMouseEnter={() => setHoveredBoat({ boat, sog, twa, x, y })}
+              onMouseLeave={() => setHoveredBoat(null)}
+            >
               {/* White outline for visibility */}
               <circle
                 cx={x}
@@ -323,6 +458,7 @@ export const PolarChart = memo(function PolarChart({ boats, currentTime, size = 
                 stroke="white"
                 strokeWidth="0.5"
                 opacity="0.8"
+                style={{ cursor: 'pointer' }}
               />
               {/* Boat point (smaller) */}
               <circle
@@ -333,10 +469,128 @@ export const PolarChart = memo(function PolarChart({ boats, currentTime, size = 
                 stroke={boat.color}
                 strokeWidth="0.5"
                 opacity="1"
+                style={{ cursor: 'pointer' }}
               />
             </g>
           );
         })}
+        </g>
+
+        {/* Mouse cursor crosshair */}
+        {mousePosition && !isDragging && (
+          <g>
+            {/* Vertical line */}
+            <line
+              x1={mousePosition.x}
+              y1={0}
+              x2={mousePosition.x}
+              y2={POLAR_CHART_SIZE}
+              stroke="currentColor"
+              strokeWidth="1"
+              strokeDasharray="4 2"
+              className="text-foreground opacity-50"
+            />
+            {/* Horizontal line */}
+            <line
+              x1={0}
+              y1={mousePosition.y}
+              x2={POLAR_CHART_SIZE}
+              y2={mousePosition.y}
+              stroke="currentColor"
+              strokeWidth="1"
+              strokeDasharray="4 2"
+              className="text-foreground opacity-50"
+            />
+            {/* Center point */}
+            <circle
+              cx={mousePosition.x}
+              cy={mousePosition.y}
+              r="4"
+              fill="currentColor"
+              className="text-foreground opacity-70"
+            />
+          </g>
+        )}
+
+        {/* Mouse position tooltip (SOG and TWA) */}
+        {mousePosition && !isDragging && (
+          <g>
+            {/* Background rectangle */}
+            <rect
+              x={mousePosition.x + 15}
+              y={mousePosition.y - 35}
+              width="100"
+              height="30"
+              fill="rgba(0, 0, 0, 0.9)"
+              rx="4"
+              stroke="white"
+              strokeWidth="1"
+            />
+            {/* SOG and TWA */}
+            <text
+              x={mousePosition.x + 20}
+              y={mousePosition.y - 15}
+              fill="white"
+              fontSize="11"
+              fontWeight="bold"
+            >
+              SOG: {mousePosition.sog.toFixed(1)} kn
+            </text>
+            <text
+              x={mousePosition.x + 20}
+              y={mousePosition.y - 2}
+              fill="white"
+              fontSize="11"
+              fontWeight="bold"
+            >
+              TWA: {mousePosition.twa.toFixed(0)}°
+            </text>
+          </g>
+        )}
+
+        {/* Boat info tooltip - positioned in screen coordinates */}
+        {hoveredBoat && !mousePosition && (() => {
+          // Calculate tooltip position accounting for zoom and pan
+          // The transform is: translate(center + pan) scale(zoom) translate(-center)
+          // So a point at (x, y) in chart coordinates becomes:
+          // (center + pan + (x - center) * zoom, center + pan + (y - center) * zoom)
+          const tooltipX = POLAR_CHART_SIZE / 2 + pan.x + (hoveredBoat.x - POLAR_CHART_SIZE / 2) * zoom;
+          const tooltipY = POLAR_CHART_SIZE / 2 + pan.y + (hoveredBoat.y - POLAR_CHART_SIZE / 2) * zoom;
+          return (
+            <g>
+              {/* Background rectangle */}
+              <rect
+                x={tooltipX + 10}
+                y={tooltipY - 20}
+                width="90"
+                height="35"
+                fill="rgba(0, 0, 0, 0.85)"
+                rx="4"
+                stroke="white"
+                strokeWidth="0.5"
+              />
+              {/* Boat name */}
+              <text
+                x={tooltipX + 15}
+                y={tooltipY - 3}
+                fill="white"
+                fontSize="10"
+                fontWeight="bold"
+              >
+                {hoveredBoat.boat.name}
+              </text>
+              {/* SOG and TWA */}
+              <text
+                x={tooltipX + 15}
+                y={tooltipY + 12}
+                fill="white"
+                fontSize="9"
+              >
+                {hoveredBoat.sog.toFixed(1)} kn @ {hoveredBoat.twa.toFixed(0)}°
+              </text>
+            </g>
+          );
+        })()}
       </svg>
 
       {/* Legend for theoretical curves */}

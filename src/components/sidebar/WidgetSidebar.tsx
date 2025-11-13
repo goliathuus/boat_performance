@@ -42,22 +42,22 @@ export function WidgetSidebar({ boats, currentTime, onOpenChange }: WidgetSideba
     { i: 'windRose', x: 0, y: 0, w: 6, h: 3, minW: 2, minH: 2 },
     // Time Series Graph (middle, full width)
     { i: 'timeSeriesGraph', x: 0, y: 3, w: 6, h: 3, minW: 2, minH: 1 },
-    // Polar Chart (bottom, full width, fills remaining space)
-    { i: 'polarChart', x: 0, y: 6, w: 6, h: 3, minW: 2, minH: 2 },
+    // Polar Chart (bottom, full width, increased height)
+    { i: 'polarChart', x: 0, y: 6, w: 6, h: 4, minW: 2, minH: 2 },
   ], []);
 
   // Calculate row height based on available space
   const rowHeight = useMemo(() => {
-    // Total rows needed: windRose (3) + timeSeriesGraph (3) + polarChart (3) = 9 rows
+    // Total rows needed: windRose (3) + timeSeriesGraph (3) + polarChart (4) = 10 rows
     if (availableHeight <= 0) return 50;
-    return Math.floor(availableHeight / 9);
+    return Math.floor(availableHeight / 10);
   }, [availableHeight]);
 
   // Calculate widget sizes
   const widgetSizes = useMemo(() => ({
     windRose: rowHeight * 3,
     timeSeries: rowHeight * 3,
-    polarChart: rowHeight * 3,
+    polarChart: rowHeight * 4,
   }), [rowHeight]);
 
   return (

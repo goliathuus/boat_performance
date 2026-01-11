@@ -113,7 +113,7 @@ export function CsvDropzone({ onDataLoaded, embedded = false }: CsvDropzoneProps
                 Choose CSV Files
               </Button>
               <p className="text-sm text-muted-foreground mt-4">
-                CSV files must contain: timestamp, lat, lon, boat_id, boat_name (optional)
+                CSV files must contain: time (or timestamp), lat, lon, boat_id, boat_name (optional), speed (or sog), cog, twd, awa, twa (optional)
               </p>
               <input
                 ref={fileInputRef}
@@ -185,7 +185,7 @@ export function CsvDropzone({ onDataLoaded, embedded = false }: CsvDropzoneProps
               Choose CSV Files
             </Button>
             <p className="text-sm text-muted-foreground mt-4">
-              CSV files must contain: timestamp, lat, lon, boat_id, boat_name (optional)
+              CSV files must contain: time (or timestamp), lat, lon, boat_id, boat_name (optional), speed (or sog), cog, twd, awa, twa (optional)
             </p>
             <input
               ref={fileInputRef}

@@ -5,6 +5,7 @@ import { isUserAdmin } from '@/lib/supabase-admin';
 import { EventListSidebar } from './EventListSidebar';
 import { SessionListSidebar } from './SessionListSidebar';
 import { useEventTelemetry } from '@/hooks/useEventTelemetry';
+import { CsvLoadModal } from './CsvLoadModal';
 
 interface SessionPickerListProps {
   onSessionsSelected: (sessionIds: string[]) => void;
@@ -14,6 +15,7 @@ interface SessionPickerListProps {
 
 export function SessionPickerList({ onSessionsSelected, onLogout, onOpenAdmin }: SessionPickerListProps) {
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const selectedEventId = useReplayStore((state) => state.selectedEventId);
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
   
@@ -133,11 +135,22 @@ export function SessionPickerList({ onSessionsSelected, onLogout, onOpenAdmin }:
       {/* Center - Instructions or empty */}
       <div className="flex-1 flex items-center justify-center bg-background relative">
         {!selectedEventId && !selectedSessionId ? (
-          <div className="text-center">
-            <h1 className="text-2xl font-semibold mb-4">Select an Event or Session</h1>
-            <p className="text-muted-foreground">
-              Choose an event from the left sidebar or a session from the right sidebar to start replay
-            </p>
+          <div className="text-center space-y-6">
+            <div>
+              <h1 className="text-2xl font-semibold mb-4">Select an Event or Session</h1>
+              <p className="text-muted-foreground mb-6">
+                Choose an event from the left sidebar or a session from the right sidebar to start replay
+              </p>
+            </div>
+            <div>
+              <Button
+                onClick={() => setIsCsvModalOpen(true)}
+                size="lg"
+                className="text-lg px-8 py-6"
+              >
+                📁 Load CSV
+              </Button>
+            </div>
           </div>
         ) : selectedSessionIds.length === 0 ? (
           <div className="text-center">
@@ -181,6 +194,16 @@ export function SessionPickerList({ onSessionsSelected, onLogout, onOpenAdmin }:
           onMouseDown={() => setIsResizingRight(true)}
         />
       </div>
+
+      {/* CSV Load Modal */}
+      <CsvLoadModal
+        isOpen={isCsvModalOpen}
+        onClose={() => setIsCsvModalOpen(false)}
+        onLoadComplete={(sessionIds) => {
+          setIsCsvModalOpen(false);
+          onSessionsSelected(sessionIds);
+        }}
+      />
     </div>
   );
 }

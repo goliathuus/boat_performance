@@ -1,5 +1,9 @@
+import { useState } from 'react';
 import { useAllSessions } from '@/hooks/useAllSessions';
 import { useReplayStore } from '@/state/useReplayStore';
+import { exportSessionToCSV, exportSessionFromSupabase } from '@/lib/csv-export';
+import { downloadCSV, generateCSVFilename } from '@/lib/csv-download';
+import { Button } from '@/components/ui/button';
 
 interface SessionListSidebarProps {
   className?: string;
@@ -11,7 +15,9 @@ export function SessionListSidebar({ className, onSessionSelected }: SessionList
   const focusSessionId = useReplayStore((state) => state.focusSessionId);
   const setFocusSession = useReplayStore((state) => state.setFocusSession);
   const setSelectedSession = useReplayStore((state) => state.setSelectedSession);
+  const sessionsStore = useReplayStore((state) => state.sessions);
   const { sessions, loading, error } = useAllSessions();
+  const [exportingSessionId, setExportingSessionId] = useState<string | null>(null);
 
   const handleSessionClick = (sessionId: string) => {
     // Set focus for highlighting
@@ -23,6 +29,31 @@ export function SessionListSidebar({ className, onSessionSelected }: SessionList
     setSelectedSession(sessionId);
     // Call callback if provided (for navigation) - pass sessionId as array for consistency
     onSessionSelected?.([sessionId]);
+  };
+
+  const handleExportSession = async (sessionId: string, sessionName: string) => {
+    setExportingSessionId(sessionId);
+    try {
+      // Try to export from store first (if data is loaded)
+      const sessionData = sessionsStore.get(sessionId);
+      let csvContent: string;
+
+      if (sessionData && sessionData.points.length > 0) {
+        // Export from store
+        csvContent = exportSessionToCSV(sessionId, sessionData);
+      } else {
+        // Export from Supabase
+        csvContent = await exportSessionFromSupabase(sessionId);
+      }
+
+      const filename = generateCSVFilename(sessionName, false);
+      downloadCSV(csvContent, filename);
+    } catch (err) {
+      console.error('Error exporting session:', err);
+      alert(err instanceof Error ? err.message : 'Failed to export session');
+    } finally {
+      setExportingSessionId(null);
+    }
   };
 
   return (
@@ -90,13 +121,23 @@ export function SessionListSidebar({ className, onSessionSelected }: SessionList
                   )}
                 </div>
                 </button>
-                <div className="mt-2">
+                <div className="mt-2 flex gap-2">
                   <button
                     onClick={() => handleSessionReplay(session.id)}
-                    className="w-full px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
+                    className="flex-1 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
                   >
                     Replay
                   </button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleExportSession(session.id, session.name)}
+                    disabled={exportingSessionId === session.id}
+                    className="px-3 py-1.5 text-sm"
+                    title="Export CSV"
+                  >
+                    {exportingSessionId === session.id ? '...' : '📥'}
+                  </Button>
                 </div>
               </div>
             ))}

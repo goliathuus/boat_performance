@@ -1,12 +1,15 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useReplayStore } from '@/state/useReplayStore';
 import { useReplayClock } from '@/hooks/useReplayClock';
 import { ReplayMapWithData } from '@/components/replay/ReplayMap';
 import { BoatListPanel } from '@/components/replay/BoatListPanel';
 import { ReplayControls } from '@/components/replay/ReplayControls';
+import { CsvImportButton } from '@/components/replay/CsvImportButton';
 import { useEventTelemetry } from '@/hooks/useEventTelemetry';
 import { useSessionTelemetry } from '@/hooks/useSessionTelemetry';
 import { Button } from '@/components/ui/button';
+import { exportSessionsToCSV } from '@/lib/csv-export';
+import { downloadCSV, generateCSVFilename } from '@/lib/csv-download';
 
 interface ReplayPageProps {
   onBack: () => void;
@@ -17,12 +20,14 @@ export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
   const selectedEventId = useReplayStore((state) => state.selectedEventId);
   const selectedSessionId = useReplayStore((state) => state.selectedSessionId);
+  const sessions = useReplayStore((state) => state.sessions);
   const globalTMin = useReplayStore((state) => state.globalTMin);
   const globalTMax = useReplayStore((state) => state.globalTMax);
   const setCurrentTime = useReplayStore((state) => state.setCurrentTime);
   const playing = useReplayStore((state) => state.playing);
   const speed = useReplayStore((state) => state.speed);
   const currentTime = useReplayStore((state) => state.currentTime);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Load telemetry based on mode: event or individual session
   useEventTelemetry(selectedEventId);
@@ -90,6 +95,25 @@ export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
     }
   }, [currentTime, clock]);
 
+  const handleExportCSV = async () => {
+    if (selectedSessionIds.length === 0) {
+      alert('No sessions selected for export');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const csvContent = exportSessionsToCSV(selectedSessionIds, sessions);
+      const filename = generateCSVFilename(undefined, selectedSessionIds.length > 1);
+      downloadCSV(csvContent, filename);
+    } catch (err) {
+      console.error('Error exporting sessions:', err);
+      alert(err instanceof Error ? err.message : 'Failed to export sessions');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (selectedSessionIds.length === 0) {
     return (
       <div className="w-screen h-screen flex items-center justify-center">
@@ -125,6 +149,16 @@ export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
           <Button variant="outline" size="sm" onClick={onBack}>
             ← Back
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCSV}
+            disabled={isExporting || selectedSessionIds.length === 0}
+            title="Export all sessions to CSV"
+          >
+            {isExporting ? 'Exporting...' : '📥 Export CSV'}
+          </Button>
+          <CsvImportButton />
           {onLogout && (
             <Button variant="outline" size="sm" onClick={onLogout}>
               Déconnexion

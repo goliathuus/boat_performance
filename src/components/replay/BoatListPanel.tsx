@@ -1,6 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useReplayStore } from '@/state/useReplayStore';
 import { findClosestPoint } from '@/lib/interpolate';
+import { exportSessionsToCSV } from '@/lib/csv-export';
+import { downloadCSV, generateCSVFilename } from '@/lib/csv-download';
+import { Button } from '@/components/ui/button';
 
 type SortMode = 'speed' | 'selection';
 
@@ -12,6 +15,7 @@ export function BoatListPanel({ sortMode = 'speed' }: BoatListPanelProps) {
   const sessions = useReplayStore((state) => state.sessions);
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
   const currentTime = useReplayStore((state) => state.currentTime);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Calculate current speed for each session
   const boatsWithSpeed = useMemo(() => {
@@ -63,12 +67,45 @@ export function BoatListPanel({ sortMode = 'speed' }: BoatListPanelProps) {
     return boatsWithSpeed; // Selection order
   }, [boatsWithSpeed, sortMode]);
 
+  const handleExportAll = async () => {
+    if (selectedSessionIds.length === 0) {
+      alert('No sessions selected for export');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const csvContent = exportSessionsToCSV(selectedSessionIds, sessions);
+      const filename = generateCSVFilename(undefined, selectedSessionIds.length > 1);
+      downloadCSV(csvContent, filename);
+    } catch (err) {
+      console.error('Error exporting sessions:', err);
+      alert(err instanceof Error ? err.message : 'Failed to export sessions');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg p-4 w-80">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold">Boats</h2>
-        <div className="text-xs text-muted-foreground">
-          {sortedBoats.length} boat{sortedBoats.length !== 1 ? 's' : ''}
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-muted-foreground">
+            {sortedBoats.length} boat{sortedBoats.length !== 1 ? 's' : ''}
+          </div>
+          {selectedSessionIds.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportAll}
+              disabled={isExporting}
+              className="h-7 px-2 text-xs"
+              title="Export all sessions to CSV"
+            >
+              {isExporting ? '...' : '📥'}
+            </Button>
+          )}
         </div>
       </div>
 

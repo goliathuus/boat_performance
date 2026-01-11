@@ -1,6 +1,10 @@
+import { useState } from 'react';
 import { useEvents } from '@/hooks/useEvents';
 import { useReplayStore } from '@/state/useReplayStore';
 import { useEffect, useRef } from 'react';
+import { exportEventToCSV } from '@/lib/csv-export';
+import { downloadCSV, generateCSVFilename } from '@/lib/csv-download';
+import { Button } from '@/components/ui/button';
 
 interface EventListSidebarProps {
   className?: string;
@@ -12,6 +16,7 @@ export function EventListSidebar({ className }: EventListSidebarProps) {
   const setSelectedEvent = useReplayStore((state) => state.setSelectedEvent);
   const resetReplay = useReplayStore((state) => state.reset);
   const previousEventIdRef = useRef<string | null>(null);
+  const [exportingEventId, setExportingEventId] = useState<string | null>(null);
 
   // When event changes, reset store to clear old sessions
   // Let useEventTelemetry handle adding sessions and loading telemetry
@@ -24,8 +29,27 @@ export function EventListSidebar({ className }: EventListSidebarProps) {
     previousEventIdRef.current = selectedEventId;
   }, [selectedEventId, resetReplay]);
 
-  const handleEventClick = (eventId: string) => {
+  const handleEventClick = (eventId: string, e: React.MouseEvent) => {
+    // Don't select event if clicking on export button
+    if ((e.target as HTMLElement).closest('button[data-export]')) {
+      return;
+    }
     setSelectedEvent(eventId);
+  };
+
+  const handleExportEvent = async (eventId: string, eventCode: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExportingEventId(eventId);
+    try {
+      const csvContent = await exportEventToCSV(eventId);
+      const filename = generateCSVFilename(`event_${eventCode}`, false);
+      downloadCSV(csvContent, filename);
+    } catch (err) {
+      console.error('Error exporting event:', err);
+      alert(err instanceof Error ? err.message : 'Failed to export event');
+    } finally {
+      setExportingEventId(null);
+    }
   };
 
   const getStatusColor = (status: 'active' | 'expired' | 'upcoming') => {
@@ -78,37 +102,54 @@ export function EventListSidebar({ className }: EventListSidebarProps) {
         {!loading && !error && events.length > 0 && (
           <div className="divide-y">
             {events.map((event) => (
-              <button
+              <div
                 key={event.id}
-                onClick={() => handleEventClick(event.id)}
                 className={`w-full text-left p-4 hover:bg-muted/50 transition-colors ${
                   selectedEventId === event.id ? 'bg-muted border-l-4 border-l-primary' : ''
                 }`}
               >
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <h3 className="font-semibold text-sm flex-1">{event.title}</h3>
-                  <span
-                    className={`px-2 py-1 rounded text-xs text-white ${getStatusColor(event.status)}`}
-                  >
-                    {getStatusLabel(event.status)}
-                  </span>
-                </div>
+                <button
+                  onClick={(e) => handleEventClick(event.id, e)}
+                  className="w-full text-left"
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <h3 className="font-semibold text-sm flex-1">{event.title}</h3>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        data-export
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => handleExportEvent(event.id, event.code, e)}
+                        disabled={exportingEventId === event.id}
+                        className="h-6 px-2 text-xs"
+                        title="Export all sessions to CSV"
+                      >
+                        {exportingEventId === event.id ? '...' : '📥'}
+                      </Button>
+                      <span
+                        className={`px-2 py-1 rounded text-xs text-white ${getStatusColor(event.status)}`}
+                      >
+                        {getStatusLabel(event.status)}
+                      </span>
+                    </div>
+                  </div>
 
-                <div className="text-xs text-muted-foreground space-y-1">
-                  <div>
-                    <span className="font-medium">Start:</span>{' '}
-                    {new Date(event.starts_at).toLocaleString()}
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <div>
+                      <span className="font-medium">Start:</span>{' '}
+                      {new Date(event.starts_at).toLocaleString()}
+                    </div>
+                    <div>
+                      <span className="font-medium">End:</span>{' '}
+                      {new Date(event.ends_at).toLocaleString()}
+                    </div>
+                    <div>
+                      <span className="font-medium">Sessions:</span> {event.session_count}
+                    </div>
+                    <div className="font-mono text-xs mt-1">{event.code}</div>
                   </div>
-                  <div>
-                    <span className="font-medium">End:</span>{' '}
-                    {new Date(event.ends_at).toLocaleString()}
-                  </div>
-                  <div>
-                    <span className="font-medium">Sessions:</span> {event.session_count}
-                  </div>
-                  <div className="font-mono text-xs mt-1">{event.code}</div>
-                </div>
-              </button>
+                </button>
+              </div>
             ))}
           </div>
         )}

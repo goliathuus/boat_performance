@@ -37,7 +37,8 @@ function parseRow(row: RawCSVRow): TrackPoint | null {
     return row[lowerKey] || row[key];
   };
 
-  const timestamp = getValue('timestamp');
+  // Support both 'timestamp' and 'time' columns (optimized format uses 'time')
+  const timestamp = getValue('timestamp') || getValue('time');
   const latStr = getValue('lat');
   const lonStr = getValue('lon');
   const boatId = getValue('boat_id');
@@ -65,8 +66,8 @@ function parseRow(row: RawCSVRow): TrackPoint | null {
     lon,
   };
 
-  // Optional fields
-  const sog = getValue('sog');
+  // Optional fields - support both 'sog' and 'speed' (optimized format uses 'speed')
+  const sog = getValue('sog') || getValue('speed');
   const cog = getValue('cog');
   const twd = getValue('twd');
   const awa = getValue('awa');
@@ -119,11 +120,13 @@ function parseRow(row: RawCSVRow): TrackPoint | null {
     if (
       ![
         'timestamp',
+        'time',
         'lat',
         'lon',
         'boat_id',
         'boat_name',
         'sog',
+        'speed',
         'cog',
         'twd',
         'awa',

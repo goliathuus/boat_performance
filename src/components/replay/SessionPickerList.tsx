@@ -184,6 +184,31 @@ export function SessionPickerList({ onSessionsSelected, onLogout, onOpenAdmin }:
             </Button>
           )}
         </div>
+
+        {/* Footer - SH Course au large credits */}
+        <div className="absolute bottom-4 left-0 right-0 z-[1000] flex justify-center">
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <span>Développé par</span>
+            <a
+              href="https://www.sh-courseaularge.fr/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:text-primary/80 underline transition-colors font-medium"
+            >
+              SH Course au large
+            </a>
+            <span>•</span>
+            <a
+              href="https://www.instagram.com/sh_course_au_large_mini650?igsh=anh0bnY4b3Rnb2o0"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:text-primary/80 underline transition-colors"
+              title="Instagram SH Course au large"
+            >
+              Instagram
+            </a>
+          </div>
+        </div>
       </div>
 
       {/* Right sidebar - Sessions */}

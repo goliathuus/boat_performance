@@ -113,9 +113,10 @@ function App() {
     if (session) {
       const store = useReplayStore.getState();
       const tMin = new Date(session.started_at).getTime();
+      // Use started_at as initial tMax instead of Date.now() - will be recalculated from points
       const tMax = session.ended_at
         ? new Date(session.ended_at).getTime()
-        : Date.now();
+        : tMin; // Use tMin as fallback instead of Date.now()
       store.addSession(sessionId, session.name, tMin, tMax);
       store.setSelectedSessions([sessionId]);
       setPage('replay');

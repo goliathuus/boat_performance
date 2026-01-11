@@ -8,6 +8,7 @@ import { CsvImportButton } from '@/components/replay/CsvImportButton';
 import { useEventTelemetry } from '@/hooks/useEventTelemetry';
 import { useSessionTelemetry } from '@/hooks/useSessionTelemetry';
 import { Button } from '@/components/ui/button';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { exportSessionsToCSV } from '@/lib/csv-export';
 import { downloadCSV, generateCSVFilename } from '@/lib/csv-download';
 
@@ -23,48 +24,39 @@ export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
   const sessions = useReplayStore((state) => state.sessions);
   const globalTMin = useReplayStore((state) => state.globalTMin);
   const globalTMax = useReplayStore((state) => state.globalTMax);
-  const setCurrentTime = useReplayStore((state) => state.setCurrentTime);
   const playing = useReplayStore((state) => state.playing);
   const speed = useReplayStore((state) => state.speed);
-  const currentTime = useReplayStore((state) => state.currentTime);
   const [isExporting, setIsExporting] = useState(false);
+  
+  // Track if clock has been initialized to avoid resetting user's cursor position
+  const clockInitializedRef = useRef(false);
 
   // Load telemetry based on mode: event or individual session
-  useEventTelemetry(selectedEventId);
-  useSessionTelemetry(selectedSessionId);
+  const { loading: eventLoading } = useEventTelemetry(selectedEventId);
+  const { loading: sessionLoading } = useSessionTelemetry(selectedSessionId);
 
   // Initialize replay clock (only when times are available)
+  // Note: globalTMax should never be null here due to spinner check above
+  // But if it is, use globalTMin instead of Date.now() to avoid setting to current time
   const clock = useReplayClock(
     globalTMin ?? 0,
     globalTMin ?? 0,
-    globalTMax ?? Date.now(),
+    globalTMax ?? (globalTMin ?? 0),
     speed
   );
 
-  // Initialize clock time when globalTMin becomes available and ensure bounds
+  // Initialize clock time only once when data is first loaded
   useEffect(() => {
-    if (globalTMin !== null && globalTMax !== null) {
-      // If clock is at 0 (initial state) and store currentTime is null, initialize at the end
-      if (clock.currentTime === 0 && currentTime === null) {
-        clock.setCurrentTime(globalTMax);
-        setCurrentTime(globalTMax);
-      }
-      // Ensure clock time is within bounds
-      if (clock.currentTime < globalTMin) {
-        clock.setCurrentTime(globalTMin);
-      }
-      if (clock.currentTime > globalTMax) {
-        clock.setCurrentTime(globalTMax);
-      }
+    if (eventLoading || sessionLoading) {
+      // Reset initialization flag when loading starts
+      clockInitializedRef.current = false;
+      return;
     }
-  }, [globalTMin, globalTMax, clock, currentTime, setCurrentTime]);
-
-  // Sync clock currentTime to store (one-way: clock -> store)
-  useEffect(() => {
-    if (clock.currentTime > 0) {
-      setCurrentTime(clock.currentTime);
+    if (globalTMin !== null && globalTMax !== null && !clockInitializedRef.current) {
+      clock.setCurrentTime(globalTMax);
+      clockInitializedRef.current = true;
     }
-  }, [clock.currentTime, setCurrentTime]);
+  }, [globalTMin, globalTMax, clock, eventLoading, sessionLoading]);
 
   // Sync store playing/speed to clock (one-way: store -> clock)
   const playingRef = useRef(playing);
@@ -84,16 +76,6 @@ export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
     }
   }, [speed, clock]);
 
-  // Update clock time when user scrubs (store -> clock)
-  const currentTimeRef = useRef(currentTime);
-  currentTimeRef.current = currentTime;
-  
-  useEffect(() => {
-    if (currentTime !== null && Math.abs(currentTime - clock.currentTime) > 1000) {
-      // Only update if difference is significant (user scrubbed)
-      clock.setCurrentTime(currentTime);
-    }
-  }, [currentTime, clock]);
 
   const handleExportCSV = async () => {
     if (selectedSessionIds.length === 0) {
@@ -125,10 +107,16 @@ export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
     );
   }
 
-  if (globalTMin === null || globalTMax === null) {
+  // Check if we're still loading telemetry
+  const isLoading = eventLoading || sessionLoading;
+
+  // Show loading spinner if:
+  // 1. We're actively loading telemetry, OR
+  // 2. Global time range is not set yet (which means sessions aren't ready)
+  if (isLoading || globalTMin === null || globalTMax === null) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center">
-        <div className="text-lg">Loading session data...</div>
+      <div className="w-screen h-screen flex items-center justify-center bg-background">
+        <LoadingSpinner size="lg" text="Chargement des données de télémétrie..." />
       </div>
     );
   }
@@ -137,11 +125,11 @@ export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
     <div className="w-screen h-screen overflow-hidden flex flex-col">
       {/* Map */}
       <div className="flex-1 relative">
-        <ReplayMapWithData />
+        <ReplayMapWithData currentTime={clock.currentTime} />
 
         {/* Boat List Panel - overlay top right */}
         <div className="absolute top-4 right-4 z-[1000]">
-          <BoatListPanel />
+          <BoatListPanel currentTime={clock.currentTime} />
         </div>
 
         {/* Top toolbar */}
@@ -168,7 +156,10 @@ export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
       </div>
 
       {/* Replay Controls - bottom */}
-      <ReplayControls />
+      <ReplayControls 
+        currentTime={clock.currentTime}
+        setCurrentTime={clock.setCurrentTime}
+      />
     </div>
   );
 }

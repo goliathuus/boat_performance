@@ -18,6 +18,7 @@ export function useEventTelemetry(eventId: string | null): UseEventTelemetryResu
   const setSelectedSessions = useReplayStore((state) => state.setSelectedSessions);
   const selectedEventId = useReplayStore((state) => state.selectedEventId);
   const updateMultipleSessionPoints = useReplayStore((state) => state.updateMultipleSessionPoints);
+  const updateSessionTimeRange = useReplayStore((state) => state.updateSessionTimeRange);
   const addSessions = useReplayStore((state) => state.addSessions);
 
   const [loading, setLoading] = useState(false);
@@ -56,9 +57,10 @@ export function useEventTelemetry(eventId: string | null): UseEventTelemetryResu
       // Add all new sessions to store in batch
       const sessionsToAdd = newSessions.map((session) => {
         const tMin = new Date(session.started_at).getTime();
+        // Use started_at as initial tMax instead of Date.now() - will be recalculated from points
         const tMax = session.ended_at
           ? new Date(session.ended_at).getTime()
-          : Date.now();
+          : tMin; // Use tMin as fallback instead of Date.now()
         
         loadedSessionsRef.current.add(session.id);
         
@@ -87,11 +89,6 @@ export function useEventTelemetry(eventId: string | null): UseEventTelemetryResu
       return;
     }
     
-    console.log('[useEventTelemetry] Loading telemetry for sessions', {
-      totalSessions: sessionIds.length,
-      sessionsToLoad: sessionsToLoad.length,
-      sessionIds: sessionsToLoad.slice(0, 3),
-    });
 
     setLoading(true);
     setError(null);
@@ -120,20 +117,10 @@ export function useEventTelemetry(eventId: string | null): UseEventTelemetryResu
           ? new Date(session.ended_at)
           : new Date();
 
-        console.log(`[useEventTelemetry] Loading telemetry for session ${index + 1}/${sessionsToLoad.length}`, {
-          sessionId,
-          sessionStartsAt: sessionStartsAt.toISOString(),
-          sessionEndsAt: sessionEndsAt.toISOString(),
-        });
 
         const points = await getTelemetryAll(sessionId, sessionStartsAt, sessionEndsAt);
         const loadTime = Date.now() - loadStart;
         
-        console.log(`[useEventTelemetry] Loaded telemetry for session ${index + 1}/${sessionsToLoad.length}`, {
-          sessionId,
-          pointsCount: points.length,
-          loadTime: `${loadTime}ms`,
-        });
 
         if (abortControllerRef.current?.signal.aborted) {
           throw new Error('Request aborted');
@@ -170,19 +157,45 @@ export function useEventTelemetry(eventId: string | null): UseEventTelemetryResu
 
         // Update store with successful loads
         if (successful.length > 0) {
-          console.log('[useEventTelemetry] Updating store with telemetry', {
-            successful: successful.length,
-            failed: failed.length,
-            total: results.length,
+          
+          // Sort points by time before updating
+          const sortedSuccessful = successful.map(({ sessionId, points }) => ({
+            sessionId,
+            points: [...points].sort((a, b) => a.t - b.t),
+          }));
+          
+          updateMultipleSessionPoints(sortedSuccessful);
+          
+          // Recalculate tMin/tMax for each session based on actual points
+          sortedSuccessful.forEach(({ sessionId }) => {
+            updateSessionTimeRange(sessionId);
           });
-          updateMultipleSessionPoints(successful);
+          
+          // Explicitly recalculate globalTMin/globalTMax from all selected sessions after points are loaded
+          const store = useReplayStore.getState();
+          const selectedSessionIds = store.selectedSessionIds;
+          const sessions = store.sessions;
+          
+          let finalGlobalTMin = Infinity;
+          let finalGlobalTMax = -Infinity;
+          selectedSessionIds.forEach((id) => {
+            const s = sessions.get(id);
+            if (s && s.points.length > 0) {
+              // Use the recalculated tMin/tMax from points
+              finalGlobalTMin = Math.min(finalGlobalTMin, s.tMin);
+              finalGlobalTMax = Math.max(finalGlobalTMax, s.tMax);
+            }
+          });
+          
+          if (finalGlobalTMin !== Infinity && finalGlobalTMax !== -Infinity) {
+            useReplayStore.setState({
+              globalTMin: finalGlobalTMin,
+              globalTMax: finalGlobalTMax,
+            });
+          }
         } else if (failed.length > 0) {
           console.warn('[useEventTelemetry] All telemetry loads failed', {
             failed: failed.length,
-            total: results.length,
-          });
-        } else {
-          console.log('[useEventTelemetry] All sessions processed (some may have no telemetry data)', {
             total: results.length,
           });
         }
@@ -202,7 +215,7 @@ export function useEventTelemetry(eventId: string | null): UseEventTelemetryResu
         abortControllerRef.current.abort();
       }
     };
-  }, [eventId, selectedEventId, selectedSessionId, sessions, sessionsLoading, addSessions, setSelectedSessions, updateMultipleSessionPoints]);
+  }, [eventId, selectedEventId, selectedSessionId, sessions, sessionsLoading, addSessions, setSelectedSessions, updateMultipleSessionPoints, updateSessionTimeRange]);
 
   return {
     loading,

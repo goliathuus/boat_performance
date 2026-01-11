@@ -18,6 +18,7 @@ export function useSessionTelemetry(sessionId: string | null): UseSessionTelemet
   const selectedSessionId = useReplayStore((state) => state.selectedSessionId);
   const selectedEventId = useReplayStore((state) => state.selectedEventId);
   const updateMultipleSessionPoints = useReplayStore((state) => state.updateMultipleSessionPoints);
+  const updateSessionTimeRange = useReplayStore((state) => state.updateSessionTimeRange);
   const addSessions = useReplayStore((state) => state.addSessions);
   const resetReplay = useReplayStore((state) => state.reset);
 
@@ -30,26 +31,13 @@ export function useSessionTelemetry(sessionId: string | null): UseSessionTelemet
 
   // Initialize session in store when session is selected
   useEffect(() => {
-    console.log('[useSessionTelemetry] Initialize effect triggered', {
-      sessionId,
-      selectedSessionId,
-      selectedEventId,
-      shouldRun: sessionId && selectedSessionId && selectedSessionId === sessionId,
-    });
-    
     // Only skip if we're in event mode AND no individual session is selected
     // If selectedSessionId is defined, we should load the individual session regardless of selectedEventId
     if (selectedEventId && !selectedSessionId) {
-      console.log('[useSessionTelemetry] Skipping: in event mode (no individual session selected)');
       return;
     }
     
     if (!sessionId || !selectedSessionId || selectedSessionId !== sessionId) {
-      console.log('[useSessionTelemetry] Skipping: session mismatch', {
-        sessionId,
-        selectedSessionId,
-        match: sessionId === selectedSessionId,
-      });
       return;
     }
 
@@ -90,9 +78,10 @@ export function useSessionTelemetry(sessionId: string | null): UseSessionTelemet
         }
 
         const tMin = new Date(session.started_at).getTime();
+        // Use started_at as initial tMax instead of Date.now() - will be recalculated from points
         const tMax = session.ended_at
           ? new Date(session.ended_at).getTime()
-          : Date.now();
+          : tMin; // Use tMin as fallback instead of Date.now()
 
         const boatDisplayName = session.boats && Array.isArray(session.boats) && session.boats.length > 0
           ? session.boats[0].display_name
@@ -121,26 +110,14 @@ export function useSessionTelemetry(sessionId: string | null): UseSessionTelemet
 
   // Load telemetry data when session changes
   useEffect(() => {
-    console.log('[useSessionTelemetry] Load telemetry effect triggered', {
-      sessionId,
-      selectedSessionId,
-      selectedEventId,
-      shouldRun: sessionId && selectedSessionId && selectedSessionId === sessionId,
-    });
     
     // Only skip if we're in event mode AND no individual session is selected
     // If selectedSessionId is defined, we should load the individual session regardless of selectedEventId
     if (selectedEventId && !selectedSessionId) {
-      console.log('[useSessionTelemetry] Load telemetry: Skipping: in event mode (no individual session selected)');
       return;
     }
     
     if (!sessionId || !selectedSessionId || selectedSessionId !== sessionId) {
-      console.log('[useSessionTelemetry] Load telemetry: Skipping: session mismatch', {
-        sessionId,
-        selectedSessionId,
-        match: sessionId === selectedSessionId,
-      });
       return;
     }
 
@@ -187,24 +164,41 @@ export function useSessionTelemetry(sessionId: string | null): UseSessionTelemet
           : new Date();
 
         // Load telemetry for this session
-        console.log('[useSessionTelemetry] Loading telemetry', {
-          sessionId,
-          sessionStartsAt: sessionStartsAt.toISOString(),
-          sessionEndsAt: sessionEndsAt.toISOString(),
-        });
         const points = await getTelemetryAll(sessionId, sessionStartsAt, sessionEndsAt);
-        console.log('[useSessionTelemetry] Loaded telemetry', {
-          sessionId,
-          pointsCount: points.length,
-        });
 
         if (!abortControllerRef.current?.signal.aborted) {
+          // Sort points by time before updating
+          const sortedPoints = [...points].sort((a, b) => a.t - b.t);
+          
           // Update session points
-          console.log('[useSessionTelemetry] Updating session points', {
-            sessionId,
-            pointsCount: points.length,
+          updateMultipleSessionPoints([{ sessionId, points: sortedPoints }]);
+          
+          // Recalculate tMin/tMax based on actual points
+          updateSessionTimeRange(sessionId);
+          
+          // Explicitly recalculate globalTMin/globalTMax from all selected sessions after points are loaded
+          const store = useReplayStore.getState();
+          const selectedSessionIds = store.selectedSessionIds;
+          const sessions = store.sessions;
+          
+          let finalGlobalTMin = Infinity;
+          let finalGlobalTMax = -Infinity;
+          selectedSessionIds.forEach((id) => {
+            const s = sessions.get(id);
+            if (s && s.points.length > 0) {
+              // Use the recalculated tMin/tMax from points
+              finalGlobalTMin = Math.min(finalGlobalTMin, s.tMin);
+              finalGlobalTMax = Math.max(finalGlobalTMax, s.tMax);
+            }
           });
-          updateMultipleSessionPoints([{ sessionId, points }]);
+          
+          if (finalGlobalTMin !== Infinity && finalGlobalTMax !== -Infinity) {
+            useReplayStore.setState({
+              globalTMin: finalGlobalTMin,
+              globalTMax: finalGlobalTMax,
+            });
+          }
+          
           setLoading(false);
         }
       } catch (err) {
@@ -222,7 +216,7 @@ export function useSessionTelemetry(sessionId: string | null): UseSessionTelemet
         abortControllerRef.current.abort();
       }
     };
-  }, [sessionId, selectedSessionId, selectedEventId, updateMultipleSessionPoints, storeSessions]);
+  }, [sessionId, selectedSessionId, selectedEventId, updateMultipleSessionPoints, updateSessionTimeRange, storeSessions]);
 
   return {
     loading,

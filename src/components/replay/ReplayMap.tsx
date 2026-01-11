@@ -116,11 +116,14 @@ const BoatMarker = memo(function BoatMarker({ position, color, name, speed, cog,
 });
 
 // Memoized component to prevent unnecessary re-renders
-const ReplayMapContent = memo(function ReplayMapContent() {
+interface ReplayMapContentProps {
+  currentTime: number;
+}
+
+const ReplayMapContent = memo(function ReplayMapContent({ currentTime }: ReplayMapContentProps) {
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
   const focusSessionId = useReplayStore((state) => state.focusSessionId);
   const sessions = useReplayStore((state) => state.sessions);
-  const currentTime = useReplayStore((state) => state.currentTime);
 
 
   // Display all selected sessions, even if they don't have points loaded yet
@@ -202,13 +205,16 @@ const ReplayMapContent = memo(function ReplayMapContent() {
 
       // Progressive track: ALL points up to currentTime (entire past track)
       // If currentTime is null, show full track (all points)
+      // If currentTime is before session.tMin, don't show track at all
       // Optimized: use binary search to find cutoff point instead of filtering all points
       let progressiveTrackPositions: Array<[number, number]> = [];
       let endIndex: number | 'all' = 'all';
       if (session.points.length > 0) {
-        // If currentTime is null, show all points (full track)
-        // Otherwise, show points up to currentTime
-        if (throttledCurrentTime === null) {
+        // Check if currentTime is before the session starts
+        if (throttledCurrentTime !== null && throttledCurrentTime < session.tMin) {
+          // Don't show track if cursor is before session start
+          progressiveTrackPositions = [];
+        } else if (throttledCurrentTime === null) {
           // Show full track when currentTime is not set yet
           progressiveTrackPositions = session.points.map((p) => [p.lat, p.lon] as [number, number]);
         } else {
@@ -310,7 +316,11 @@ const ReplayMapContent = memo(function ReplayMapContent() {
   );
 });
 
-export function ReplayMap() {
+interface ReplayMapProps {
+  currentTime: number;
+}
+
+export function ReplayMap({ currentTime }: ReplayMapProps) {
   return (
     <MapContainer
       center={[46.0, -1.0]}
@@ -322,13 +332,17 @@ export function ReplayMap() {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
       />
-      <ReplayMapContent />
+      <ReplayMapContent currentTime={currentTime} />
     </MapContainer>
   );
 }
 
 // Export wrapper (data loading is now handled by useEventTelemetry)
-export function ReplayMapWithData() {
-  return <ReplayMap />;
+interface ReplayMapWithDataProps {
+  currentTime: number;
+}
+
+export function ReplayMapWithData({ currentTime }: ReplayMapWithDataProps) {
+  return <ReplayMap currentTime={currentTime} />;
 }
 

@@ -15,7 +15,6 @@ export interface SessionData {
 interface ReplayState {
   selectedSessionIds: string[];
   sessions: Map<string, SessionData>;
-  currentTime: number | null;
   playing: boolean;
   speed: number; // 0.5, 1, 2, 4, 8
   globalTMin: number | null;
@@ -29,7 +28,7 @@ interface ReplayState {
   addSessions: (sessions: Array<{ sessionId: string; name: string; tMin: number; tMax: number; boatDisplayName?: string }>) => void;
   updateSessionPoints: (sessionId: string, points: TrackPoint[]) => void;
   updateMultipleSessionPoints: (updates: Array<{ sessionId: string; points: TrackPoint[] }>) => void;
-  setCurrentTime: (time: number | null) => void;
+  updateSessionTimeRange: (sessionId: string) => void;
   setPlaying: (playing: boolean) => void;
   setSpeed: (speed: number) => void;
   setSelectedEvent: (eventId: string | null) => void;
@@ -41,7 +40,6 @@ interface ReplayState {
 export const useReplayStore = create<ReplayState>((set, get) => ({
   selectedSessionIds: [],
   sessions: new Map(),
-  currentTime: null,
   playing: false,
   speed: 1,
   globalTMin: null,
@@ -66,7 +64,8 @@ export const useReplayStore = create<ReplayState>((set, get) => ({
     set({
       globalTMin: tMin === Infinity ? null : tMin,
       globalTMax: tMax === -Infinity ? null : tMax,
-      currentTime: tMax === -Infinity ? null : tMax, // Initialize at the end to show full track
+      // Don't initialize currentTime here - wait for points to be loaded
+      // currentTime will be set in updateSessionTimeRange or in the hooks after loading
     });
   },
 
@@ -167,11 +166,6 @@ export const useReplayStore = create<ReplayState>((set, get) => ({
     });
     
     if (hasChanges) {
-      console.log('[useReplayStore] Updated points for sessions', {
-        updated: updatedSessions.length,
-        skipped: skippedSessions.length,
-        notFound: notFoundSessions.length,
-      });
       set({ sessions });
     } else if (notFoundSessions.length > 0) {
       console.error('[useReplayStore] Cannot update points - sessions not found', {
@@ -180,12 +174,34 @@ export const useReplayStore = create<ReplayState>((set, get) => ({
     }
   },
 
-  setCurrentTime: (time) => {
-    const prevTime = get().currentTime;
-    if (prevTime !== time) {
-      set({ currentTime: time });
+  updateSessionTimeRange: (sessionId) => {
+    const sessions = new Map(get().sessions);
+    const session = sessions.get(sessionId);
+    
+    if (!session) {
+      console.error('[useReplayStore] Cannot update time range - session not found', { sessionId });
+      return;
+    }
+
+    if (session.points.length === 0) {
+      // No points to calculate from, keep existing tMin/tMax
+      return;
+    }
+
+    // Sort points by time to ensure first and last are correct
+    const sortedPoints = [...session.points].sort((a, b) => a.t - b.t);
+    const newTMin = sortedPoints[0].t;
+    const newTMax = sortedPoints[sortedPoints.length - 1].t;
+
+    // Only update if values changed
+    if (session.tMin !== newTMin || session.tMax !== newTMax) {
+      sessions.set(sessionId, { ...session, tMin: newTMin, tMax: newTMax });
+      set({ sessions });
+      // Note: globalTMin/globalTMax are NOT updated here to avoid multiple updates during batch processing
+      // They will be recalculated by useEventTelemetry/useSessionTelemetry after all updateSessionTimeRange calls
     }
   },
+
 
   setPlaying: (playing) => {
     set({ playing });
@@ -213,7 +229,6 @@ export const useReplayStore = create<ReplayState>((set, get) => ({
     set({
       selectedSessionIds: [],
       sessions: new Map(),
-      currentTime: null,
       playing: false,
       speed: 1,
       globalTMin: null,

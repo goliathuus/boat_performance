@@ -9,20 +9,16 @@ type SortMode = 'speed' | 'selection';
 
 interface BoatListPanelProps {
   sortMode?: SortMode;
+  currentTime: number;
 }
 
-export function BoatListPanel({ sortMode = 'speed' }: BoatListPanelProps) {
+export function BoatListPanel({ sortMode = 'speed', currentTime }: BoatListPanelProps) {
   const sessions = useReplayStore((state) => state.sessions);
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
-  const currentTime = useReplayStore((state) => state.currentTime);
   const [isExporting, setIsExporting] = useState(false);
 
   // Calculate current speed for each session
   const boatsWithSpeed = useMemo(() => {
-    if (currentTime === null) {
-      return [];
-    }
-
     return selectedSessionIds
       .map((sessionId) => {
         const session = sessions.get(sessionId);

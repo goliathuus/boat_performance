@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useReplayStore } from '@/state/useReplayStore';
 import { isUserAdmin } from '@/lib/supabase-admin';
 import { EventListSidebar } from './EventListSidebar';
@@ -20,7 +21,7 @@ export function SessionPickerList({ onSessionsSelected, onLogout, onOpenAdmin }:
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
   
   // Load telemetry for selected event (before navigation to replay)
-  useEventTelemetry(selectedEventId);
+  const { loading: eventLoading } = useEventTelemetry(selectedEventId);
   const [leftWidth, setLeftWidth] = useState(300);
   const [rightWidth, setRightWidth] = useState(300);
   const [isResizingLeft, setIsResizingLeft] = useState(false);
@@ -152,12 +153,9 @@ export function SessionPickerList({ onSessionsSelected, onLogout, onOpenAdmin }:
               </Button>
             </div>
           </div>
-        ) : selectedSessionIds.length === 0 ? (
+        ) : selectedSessionIds.length === 0 || eventLoading ? (
           <div className="text-center">
-            <h1 className="text-2xl font-semibold mb-4">Loading Sessions...</h1>
-            <p className="text-muted-foreground">
-              Please wait while we load the sessions
-            </p>
+            <LoadingSpinner size="lg" text="Chargement des sessions..." />
           </div>
         ) : (
           <div className="text-center">

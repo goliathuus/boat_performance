@@ -3,19 +3,22 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { formatTime } from '@/lib/time';
 
-export function ReplayControls() {
-  const currentTime = useReplayStore((state) => state.currentTime);
+interface ReplayControlsProps {
+  currentTime: number;
+  setCurrentTime: (time: number) => void;
+}
+
+export function ReplayControls({ currentTime, setCurrentTime }: ReplayControlsProps) {
   const playing = useReplayStore((state) => state.playing);
   const speed = useReplayStore((state) => state.speed);
   const globalTMin = useReplayStore((state) => state.globalTMin);
   const globalTMax = useReplayStore((state) => state.globalTMax);
   const setPlaying = useReplayStore((state) => state.setPlaying);
   const setSpeed = useReplayStore((state) => state.setSpeed);
-  const setCurrentTime = useReplayStore((state) => state.setCurrentTime);
 
   const speedOptions = [0.5, 1, 2, 4, 8];
 
-  if (currentTime === null || globalTMin === null || globalTMax === null) {
+  if (globalTMin === null || globalTMax === null) {
     return null;
   }
 

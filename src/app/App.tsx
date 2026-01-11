@@ -1,113 +1,162 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useRaceStore } from '@/state/useRaceStore';
-import { LeafletMap } from '@/components/map/LeafletMap';
-import { TimeController } from '@/components/timeline/TimeController';
-import { CsvDropzone } from '@/components/upload/CsvDropzone';
-import { BoatPanel } from '@/components/sidebar/BoatPanel';
-import { WidgetSidebar } from '@/components/sidebar/WidgetSidebar';
-import { SpeedGaugePair } from '@/components/map/SpeedGaugePair';
-import { Button } from '@/components/ui/button';
-import { PerformancePanel } from '@/components/debug/PerformancePanel';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import { LoginPage } from '@/components/auth/LoginPage';
+import { SessionPickerList } from '@/components/replay/SessionPickerList';
+import { ReplayPage } from './ReplayPage';
+import { AdminSessionsPage } from '@/components/admin/AdminSessionsPage';
+import { useReplayStore } from '@/state/useReplayStore';
+
+type AppPage = 'auth' | 'sessions' | 'replay' | 'admin';
 
 function App() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [widgetSidebarOpen, setWidgetSidebarOpen] = useState(true);
-  const dataset = useRaceStore((state) => state.dataset);
-  const drawFullTrack = useRaceStore((state) => state.drawFullTrack);
-  const currentTime = useRaceStore((state) => state.currentTime);
-  const zoomToBounds = useRaceStore((state) => state.zoomToBounds);
-  const timeRange = useRaceStore((state) => state.timeRange);
-  const autoFitEnabled = useRaceStore((state) => state.autoFitEnabled);
-  const showTWD = useRaceStore((state) => state.showTWD);
+  const [page, setPage] = useState<AppPage>('auth');
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
+  const resetReplay = useReplayStore((state) => state.reset);
 
-  const boats = dataset?.boats || [];
-  const filteredBoats = boats; // Later: filter by visibility
-
-  // Calculate available height for speed gauges
-  const [availableHeight, setAvailableHeight] = useState(0);
+  // Check authentication on mount (only once)
   useEffect(() => {
-    const calculateHeight = () => {
-      const timeControllerHeight = 220; // Height of TimeController
-      const available = window.innerHeight - timeControllerHeight;
-      setAvailableHeight(available);
+    const checkAuth = async () => {
+      setIsCheckingAuth(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        setPage('auth');
+        setIsCheckingAuth(false);
+        return;
+      }
+
+      // If authenticated, check selected sessions from store
+      const currentSelectedIds = useReplayStore.getState().selectedSessionIds;
+      if (currentSelectedIds.length === 0) {
+        setPage('sessions');
+      } else {
+        setPage('replay');
+      }
+      setIsCheckingAuth(false);
     };
 
-    calculateHeight();
-    window.addEventListener('resize', calculateHeight);
-    return () => window.removeEventListener('resize', calculateHeight);
-  }, []);
+    checkAuth();
 
-  // Calculate speed gauge height (same as wind rose height: 25% of available height)
-  const speedGaugeHeight = useMemo(() => {
-    if (availableHeight <= 0) return 120;
-    return Math.floor(availableHeight * 0.25);
-  }, [availableHeight]);
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        setPage('auth');
+        resetReplay();
+      } else {
+        // User logged in - navigate based on selected sessions
+        // Use functional update to get current selectedSessionIds
+        setPage((currentPage) => {
+          // Don't change if we're on admin page (let user navigate back manually)
+          if (currentPage === 'admin') return currentPage;
+          
+          // Get current selectedSessionIds from store
+          const currentSelectedIds = useReplayStore.getState().selectedSessionIds;
+          if (currentSelectedIds.length === 0) {
+            return 'sessions';
+          } else {
+            return 'replay';
+          }
+        });
+      }
+    });
 
-  return (
-    <div className="w-screen h-screen overflow-hidden flex flex-col">
-      {/* Map */}
-      <div className="flex-1 relative">
-        <LeafletMap
-          boats={filteredBoats}
-          currentTime={currentTime}
-          drawFullTrack={drawFullTrack}
-          zoomToBounds={zoomToBounds}
-          timeRange={timeRange}
-          autoFitEnabled={autoFitEnabled}
-          showTWD={showTWD}
-        />
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []); // Empty deps - only run on mount
 
-        {/* Widget Sidebar */}
-        <WidgetSidebar
-          boats={filteredBoats}
-          currentTime={currentTime}
-          onOpenChange={setWidgetSidebarOpen}
-        />
+  // Update page when sessions are selected (only if authenticated)
+  useEffect(() => {
+    // Don't change page if we're checking auth or not authenticated
+    if (isCheckingAuth || page === 'auth') return;
+    
+    if (selectedSessionIds.length > 0 && page === 'sessions') {
+      setPage('replay');
+    } else if (selectedSessionIds.length === 0 && page === 'replay') {
+      setPage('sessions');
+    }
+  }, [selectedSessionIds.length, page, isCheckingAuth]);
 
-        {/* Speed Gauges - positioned to the right of sidebar */}
-        {widgetSidebarOpen && (
-          <div
-            className="fixed left-[300px] top-0 z-[999] transition-all duration-300 ease-in-out"
-            style={{
-              top: '8px',
-              height: `${speedGaugeHeight}px`,
-            }}
-          >
-            <SpeedGaugePair boats={filteredBoats} currentTime={currentTime} height={speedGaugeHeight} />
-          </div>
-        )}
+  const handleLoginSuccess = () => {
+    setPage('sessions');
+  };
 
-        {/* Top toolbar */}
-        <div className="absolute top-4 right-4 z-[1000] flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-          >
-            🗺️ Boats
-          </Button>
-        </div>
+  const handleSessionsSelected = () => {
+    setPage('replay');
+  };
 
-        {/* CSV Dropzone */}
-        <CsvDropzone />
+  const handleBackToSessions = () => {
+    resetReplay();
+    setPage('sessions');
+  };
 
-        {/* Performance Panel (debug mode) */}
-        <PerformancePanel />
+  const handleOpenAdmin = () => {
+    setPage('admin');
+  };
+
+  const handleBackFromAdmin = () => {
+    setPage('replay');
+  };
+
+  const handleReplayFromAdmin = async (sessionId: string) => {
+    // Load session metadata and add to store, then navigate to replay
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: session } = await supabase
+      .from('sessions')
+      .select('name, started_at, ended_at')
+      .eq('id', sessionId)
+      .single();
+
+    if (session) {
+      const store = useReplayStore.getState();
+      const tMin = new Date(session.started_at).getTime();
+      const tMax = session.ended_at
+        ? new Date(session.ended_at).getTime()
+        : Date.now();
+      store.addSession(sessionId, session.name, tMin, tMax);
+      store.setSelectedSessions([sessionId]);
+      setPage('replay');
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    // The onAuthStateChange listener will handle setting page to 'auth'
+  };
+
+  // Show loading while checking auth
+  if (isCheckingAuth) {
+    return (
+      <div className="w-screen h-screen flex items-center justify-center bg-background">
+        <div className="text-lg">Checking authentication...</div>
       </div>
+    );
+  }
 
-      {/* Timeline Controller */}
-      <div
-        className={`transition-all duration-300 ease-in-out ${
-          widgetSidebarOpen ? 'ml-[320px]' : 'ml-0'
-        }`}
-      >
-        <TimeController />
-      </div>
+  // Render based on current page
+  if (page === 'auth') {
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+  }
 
-      {/* Sidebar */}
-      <BoatPanel open={sidebarOpen} onOpenChange={setSidebarOpen} />
-    </div>
-  );
+  if (page === 'sessions') {
+    return <SessionPickerList onSessionsSelected={handleSessionsSelected} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} />;
+  }
+
+  if (page === 'admin') {
+    return (
+      <AdminSessionsPage
+        onBack={handleBackFromAdmin}
+        onReplay={handleReplayFromAdmin}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  // Page === 'replay'
+  return <ReplayPage onBack={handleBackToSessions} onOpenAdmin={handleOpenAdmin} onLogout={handleLogout} />;
 }
 
 export default App;

@@ -1,6 +1,13 @@
 # Boat Tracker - Race Replay Application
 
-A React TypeScript application for visualizing and replaying boat race tracks from CSV data. Import boat tracks, visualize them on an interactive map with wind data visualization, and replay the race with timeline controls.
+A React TypeScript application for visualizing and replaying boat race tracks from CSV data or Supabase database. Import boat tracks, visualize them on an interactive map, and replay the race with timeline controls. Optimized for large datasets (200k-2M points) with streaming and downsampling.
+
+## High-Volume Mode Features
+
+- **Streaming telemetry**: Loads data in sliding windows around current time
+- **Downsampling**: Automatic downsampling for preview and detail views
+- **Multi-session replay**: Compare multiple boats simultaneously
+- **Optimized rendering**: Efficient polyline rendering with LOD (Level of Detail)
 
 ## Features
 
@@ -52,6 +59,7 @@ A React TypeScript application for visualizing and replaying boat race tracks fr
 
 - Node.js (v18 or higher)
 - npm, pnpm, or yarn
+- Supabase account and project (for database features)
 
 ### Installation
 
@@ -61,6 +69,11 @@ npm install
 # or
 pnpm install
 
+# Configure environment variables
+# Create a .env.local file in the project root with:
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
+
 # Start development server
 npm run dev
 # or
@@ -68,6 +81,17 @@ pnpm dev
 ```
 
 The application will be available at `http://localhost:5173`
+
+### Environment Variables
+
+Create a `.env.local` file in the project root with your Supabase credentials:
+
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
+```
+
+You can find these values in your Supabase project settings: https://app.supabase.com/project/_/settings/api
 
 ### Build
 

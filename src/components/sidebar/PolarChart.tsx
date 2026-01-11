@@ -363,7 +363,7 @@ export const PolarChart = memo(function PolarChart({ boats, currentTime, size = 
                 x={POLAR_CHART_SIZE / 2}
                 y={POLAR_CHART_SIZE / 2 - radius - 8}
                 textAnchor="middle"
-                dominantBaseline="bottom"
+                dominantBaseline="text-after-edge"
                 fontSize="9"
                 className="fill-muted-foreground"
               >

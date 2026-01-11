@@ -483,7 +483,7 @@ export function LeafletMap({
             boat={boat}
             drawFullTrack={drawFullTrack}
             currentTime={currentTime}
-            timeRange={timeRange}
+            timeRange={timeRange ?? null}
             sogRange={sogRange}
             showTWD={showTWD}
           />

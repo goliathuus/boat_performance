@@ -4,13 +4,19 @@ import { parseCSV } from '@/domain/parsing/csv';
 import { mergeTracks } from '@/domain/tracks';
 import { Button } from '@/components/ui/button';
 
-export function CsvDropzone() {
+interface CsvDropzoneProps {
+  onDataLoaded?: () => void;
+  embedded?: boolean; // If true, don't show fullscreen overlay
+}
+
+export function CsvDropzone({ onDataLoaded, embedded = false }: CsvDropzoneProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dataset = useRaceStore((state) => state.dataset);
   const setDataset = useRaceStore((state) => state.setDataset);
+  const setDataSource = useRaceStore((state) => state.setDataSource);
 
   const handleFiles = useCallback(
     async (files: FileList | File[]) => {
@@ -29,7 +35,9 @@ export function CsvDropzone() {
         // Merge all datasets
         const merged = mergeTracks(datasets);
         setDataset(merged);
+        setDataSource('csv');
         setLoading(false);
+        onDataLoaded?.();
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to parse CSV');
         setLoading(false);
@@ -73,6 +81,56 @@ export function CsvDropzone() {
     fileInputRef.current?.click();
   }, []);
 
+  // If embedded mode, show compact version
+  if (embedded) {
+    return (
+      <div className="space-y-4">
+        {error && (
+          <div className="p-4 bg-destructive/10 text-destructive rounded-md text-sm">
+            {error}
+          </div>
+        )}
+        <div
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          className={`
+            p-8 border-2 border-dashed rounded-lg text-center
+            transition-all
+            ${isDragActive ? 'border-primary bg-primary/5' : ''}
+          `}
+        >
+          {loading ? (
+            <div className="text-lg">Loading CSV files...</div>
+          ) : (
+            <>
+              <div className="text-6xl mb-4">📊</div>
+              <h2 className="text-2xl font-semibold mb-2">Import Boat Tracks</h2>
+              <p className="text-muted-foreground mb-6">
+                Drag and drop CSV files here, or click to browse
+              </p>
+              <Button onClick={openFileDialog} size="lg">
+                Choose CSV Files
+              </Button>
+              <p className="text-sm text-muted-foreground mt-4">
+                CSV files must contain: timestamp, lat, lon, boat_id, boat_name (optional)
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Original fullscreen mode (for App.tsx)
   if (dataset) {
     return (
       <div className="absolute top-4 right-4 z-[1000]">

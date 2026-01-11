@@ -1,0 +1,169 @@
+import { supabase } from './supabase';
+import type { Event, EventWithStats, AdminSession } from '@/domain/types';
+
+/**
+ * Get all events for the current admin user with session counts
+ */
+export async function getAdminEvents(): Promise<EventWithStats[]> {
+  const { data, error } = await supabase.rpc('admin_get_events');
+
+  if (error) {
+    throw new Error(`Failed to get events: ${error.message}`);
+  }
+
+  if (!data) {
+    return [];
+  }
+
+  // Calculate status for each event
+  const now = new Date();
+  return data.map((event: any) => {
+    const startsAt = new Date(event.starts_at);
+    const endsAt = new Date(event.ends_at);
+    
+    let status: 'active' | 'expired' | 'upcoming';
+    if (now < startsAt) {
+      status = 'upcoming';
+    } else if (now > endsAt) {
+      status = 'expired';
+    } else {
+      status = 'active';
+    }
+
+    return {
+      id: event.id,
+      title: event.title,
+      code: event.code,
+      starts_at: event.starts_at,
+      ends_at: event.ends_at,
+      admin_user_id: event.admin_user_id,
+      created_at: event.created_at,
+      status,
+      session_count: Number(event.session_count) || 0,
+    };
+  });
+}
+
+/**
+ * Create a new event
+ */
+export async function createEvent(
+  title: string,
+  startsAt: Date,
+  endsAt: Date
+): Promise<Event> {
+  // Validate dates
+  if (endsAt <= startsAt) {
+    throw new Error('End date must be after start date');
+  }
+
+  const { data, error } = await supabase.rpc('admin_create_event', {
+    p_title: title,
+    p_starts_at: startsAt.toISOString(),
+    p_ends_at: endsAt.toISOString(),
+  });
+
+  if (error) {
+    throw new Error(`Failed to create event: ${error.message}`);
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error('Failed to create event: No data returned');
+  }
+
+  return {
+    id: data[0].id,
+    title: data[0].title,
+    code: data[0].code,
+    starts_at: data[0].starts_at,
+    ends_at: data[0].ends_at,
+    admin_user_id: data[0].admin_user_id,
+    created_at: data[0].created_at,
+  };
+}
+
+/**
+ * Stop an event (set ends_at = now())
+ */
+export async function stopEvent(eventId: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_stop_event', {
+    p_event_id: eventId,
+  });
+
+  if (error) {
+    throw new Error(`Failed to stop event: ${error.message}`);
+  }
+}
+
+/**
+ * Delete an event
+ */
+export async function deleteEvent(eventId: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_delete_event', {
+    p_event_id: eventId,
+  });
+
+  if (error) {
+    throw new Error(`Failed to delete event: ${error.message}`);
+  }
+}
+
+/**
+ * Get sessions for an event
+ */
+export async function getEventSessions(eventId: string): Promise<AdminSession[]> {
+  const { data, error } = await supabase.rpc('admin_get_event_sessions', {
+    p_event_id: eventId,
+  });
+
+  if (error) {
+    throw new Error(`Failed to get event sessions: ${error.message}`);
+  }
+
+  if (!data) {
+    return [];
+  }
+
+  return data.map((session: any) => ({
+    id: session.id,
+    name: session.name,
+    started_at: session.started_at,
+    ended_at: session.ended_at,
+    boat_id: session.boat_id,
+    user_id: session.user_id,
+    event_id: session.event_id,
+  }));
+}
+
+/**
+ * Delete a session
+ */
+export async function deleteSession(sessionId: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_delete_session', {
+    p_session_id: sessionId,
+  });
+
+  if (error) {
+    throw new Error(`Failed to delete session: ${error.message}`);
+  }
+}
+
+/**
+ * Check if the current user is an admin (based on role in app_metadata)
+ */
+export async function isUserAdmin(): Promise<boolean> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return false;
+    }
+
+    // Check role in app_metadata (set by Supabase admin, not modifiable by user)
+    const role = user.app_metadata?.role;
+    return role === 'admin';
+  } catch (error) {
+    console.error('Error in isUserAdmin:', error);
+    return false;
+  }
+}
+

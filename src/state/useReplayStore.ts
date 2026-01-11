@@ -1,0 +1,227 @@
+import { create } from 'zustand';
+import type { TrackPoint } from '@/domain/types';
+import { generateBoatColor } from '@/lib/color';
+
+export interface SessionData {
+  id: string;
+  name: string;
+  color: string;
+  tMin: number;
+  tMax: number;
+  points: TrackPoint[]; // All telemetry points for this session
+  boatDisplayName?: string; // Display name from boats table
+}
+
+interface ReplayState {
+  selectedSessionIds: string[];
+  sessions: Map<string, SessionData>;
+  currentTime: number | null;
+  playing: boolean;
+  speed: number; // 0.5, 1, 2, 4, 8
+  globalTMin: number | null;
+  globalTMax: number | null;
+  selectedEventId: string | null;
+  selectedSessionId: string | null; // For individual session replay mode
+  focusSessionId: string | null;
+
+  setSelectedSessions: (sessionIds: string[]) => void;
+  addSession: (sessionId: string, name: string, tMin: number, tMax: number, boatDisplayName?: string) => void;
+  addSessions: (sessions: Array<{ sessionId: string; name: string; tMin: number; tMax: number; boatDisplayName?: string }>) => void;
+  updateSessionPoints: (sessionId: string, points: TrackPoint[]) => void;
+  updateMultipleSessionPoints: (updates: Array<{ sessionId: string; points: TrackPoint[] }>) => void;
+  setCurrentTime: (time: number | null) => void;
+  setPlaying: (playing: boolean) => void;
+  setSpeed: (speed: number) => void;
+  setSelectedEvent: (eventId: string | null) => void;
+  setSelectedSession: (sessionId: string | null) => void;
+  setFocusSession: (sessionId: string | null) => void;
+  reset: () => void;
+}
+
+export const useReplayStore = create<ReplayState>((set, get) => ({
+  selectedSessionIds: [],
+  sessions: new Map(),
+  currentTime: null,
+  playing: false,
+  speed: 1,
+  globalTMin: null,
+  globalTMax: null,
+  selectedEventId: null,
+  selectedSessionId: null,
+  focusSessionId: null,
+
+  setSelectedSessions: (sessionIds) => {
+    set({ selectedSessionIds: sessionIds });
+    // Update global time range
+    const sessions = get().sessions;
+    let tMin = Infinity;
+    let tMax = -Infinity;
+    sessionIds.forEach((id) => {
+      const session = sessions.get(id);
+      if (session) {
+        tMin = Math.min(tMin, session.tMin);
+        tMax = Math.max(tMax, session.tMax);
+      }
+    });
+    set({
+      globalTMin: tMin === Infinity ? null : tMin,
+      globalTMax: tMax === -Infinity ? null : tMax,
+      currentTime: tMax === -Infinity ? null : tMax, // Initialize at the end to show full track
+    });
+  },
+
+  addSession: (sessionId, name, tMin, tMax, boatDisplayName) => {
+    const sessions = new Map(get().sessions);
+    if (!sessions.has(sessionId)) {
+      sessions.set(sessionId, {
+        id: sessionId,
+        name,
+        color: generateBoatColor(sessionId),
+        tMin,
+        tMax,
+        points: [],
+        boatDisplayName,
+      });
+      set({ sessions });
+    } else {
+      // Update existing session with boatDisplayName if provided
+      const existing = sessions.get(sessionId);
+      if (existing && boatDisplayName) {
+        sessions.set(sessionId, { ...existing, boatDisplayName });
+        set({ sessions });
+      }
+    }
+  },
+
+  // Batch add multiple sessions at once to reduce re-renders
+  addSessions: (sessionsToAdd: Array<{ sessionId: string; name: string; tMin: number; tMax: number; boatDisplayName?: string }>) => {
+    const sessions = new Map(get().sessions);
+    let hasChanges = false;
+    
+    sessionsToAdd.forEach(({ sessionId, name, tMin, tMax, boatDisplayName }) => {
+      if (!sessions.has(sessionId)) {
+        sessions.set(sessionId, {
+          id: sessionId,
+          name,
+          color: generateBoatColor(sessionId),
+          tMin,
+          tMax,
+          points: [],
+          boatDisplayName,
+        });
+        hasChanges = true;
+      } else if (boatDisplayName) {
+        const existing = sessions.get(sessionId);
+        if (existing && !existing.boatDisplayName) {
+          sessions.set(sessionId, { ...existing, boatDisplayName });
+          hasChanges = true;
+        }
+      }
+    });
+    
+    if (hasChanges) {
+      set({ sessions });
+    }
+  },
+
+  updateSessionPoints: (sessionId, points) => {
+    const sessions = new Map(get().sessions);
+    const session = sessions.get(sessionId);
+    if (session) {
+      // Only update if points actually changed (avoid unnecessary re-renders)
+      if (session.points.length !== points.length || 
+          (points.length > 0 && session.points[0]?.t !== points[0]?.t)) {
+        sessions.set(sessionId, { ...session, points });
+        set({ sessions });
+      }
+    }
+  },
+
+  // Batch update multiple session points at once to reduce re-renders
+  updateMultipleSessionPoints: (updates: Array<{ sessionId: string; points: TrackPoint[] }>) => {
+    const sessions = new Map(get().sessions);
+    let hasChanges = false;
+    const notFoundSessions: string[] = [];
+    const updatedSessions: string[] = [];
+    const skippedSessions: string[] = [];
+    
+    updates.forEach(({ sessionId, points }) => {
+      const session = sessions.get(sessionId);
+      if (session) {
+        // Only update if points actually changed
+        if (session.points.length !== points.length || 
+            (points.length > 0 && session.points[0]?.t !== points[0]?.t)) {
+          sessions.set(sessionId, { ...session, points });
+          hasChanges = true;
+          updatedSessions.push(sessionId);
+        } else {
+          skippedSessions.push(sessionId);
+        }
+      } else {
+        console.error('[useReplayStore] Session not found in store', {
+          sessionId,
+          availableSessionIds: Array.from(sessions.keys()),
+        });
+        notFoundSessions.push(sessionId);
+      }
+    });
+    
+    if (hasChanges) {
+      console.log('[useReplayStore] Updated points for sessions', {
+        updated: updatedSessions.length,
+        skipped: skippedSessions.length,
+        notFound: notFoundSessions.length,
+      });
+      set({ sessions });
+    } else if (notFoundSessions.length > 0) {
+      console.error('[useReplayStore] Cannot update points - sessions not found', {
+        notFoundSessionIds: notFoundSessions,
+      });
+    }
+  },
+
+  setCurrentTime: (time) => {
+    const prevTime = get().currentTime;
+    if (prevTime !== time) {
+      set({ currentTime: time });
+    }
+  },
+
+  setPlaying: (playing) => {
+    set({ playing });
+  },
+
+  setSpeed: (speed) => {
+    set({ speed });
+  },
+
+  setSelectedEvent: (eventId) => {
+    // When selecting an event, clear selectedSessionId (only one mode at a time)
+    set({ selectedEventId: eventId, selectedSessionId: null });
+  },
+
+  setSelectedSession: (sessionId) => {
+    // When selecting a session, clear selectedEventId (only one mode at a time)
+    set({ selectedSessionId: sessionId, selectedEventId: null });
+  },
+
+  setFocusSession: (sessionId) => {
+    set({ focusSessionId: sessionId });
+  },
+
+  reset: () => {
+    set({
+      selectedSessionIds: [],
+      sessions: new Map(),
+      currentTime: null,
+      playing: false,
+      speed: 1,
+      globalTMin: null,
+      globalTMax: null,
+      selectedEventId: null,
+      selectedSessionId: null,
+      focusSessionId: null,
+    });
+  },
+}));
+

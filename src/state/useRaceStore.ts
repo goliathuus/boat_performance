@@ -13,6 +13,7 @@ interface RaceState {
   autoFitEnabled: boolean; // Whether to auto-fit bounds on data load
   windAngleMode: 'AWA' | 'TWA'; // Wind angle mode for wind rose
   showTWD: boolean; // Show TWD arrows on map
+  dataSource: 'supabase' | 'csv' | null; // Source of the current dataset
 
   setDataset: (dataset: RaceDataset) => void;
   setCurrentTime: (time: number | null) => void;
@@ -24,6 +25,8 @@ interface RaceState {
   setAutoFitEnabled: (enabled: boolean) => void;
   setWindAngleMode: (mode: 'AWA' | 'TWA') => void;
   setShowTWD: (show: boolean) => void;
+  setDataSource: (source: 'supabase' | 'csv' | null) => void;
+  resetDataset: () => void; // Reset dataset and return to data source selection
 }
 
 export const useRaceStore = create<RaceState>((set) => ({
@@ -37,6 +40,7 @@ export const useRaceStore = create<RaceState>((set) => ({
   autoFitEnabled: true,
   windAngleMode: 'TWA',
   showTWD: false,
+  dataSource: null,
 
   setDataset: (dataset) => {
     set({
@@ -84,5 +88,19 @@ export const useRaceStore = create<RaceState>((set) => ({
 
   setShowTWD: (show) => {
     set({ showTWD: show });
+  },
+
+  setDataSource: (source) => {
+    set({ dataSource: source });
+  },
+
+  resetDataset: () => {
+    set({
+      dataset: null,
+      currentTime: null,
+      playing: false,
+      timeRange: null,
+      dataSource: null,
+    });
   },
 }));

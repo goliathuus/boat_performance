@@ -20,9 +20,6 @@ export function BoatLegend({ className }: BoatLegendProps) {
     setHiddenSessions(newHidden);
   };
 
-  // Filter sessions to show only visible ones
-  const visibleSessions = selectedSessionIds.filter((id) => !hiddenSessions.has(id));
-
   // Update selectedSessionIds in store to hide sessions
   // Note: This is a simplified approach - in a real implementation, you might want
   // to add a separate "visibleSessionIds" state to the store

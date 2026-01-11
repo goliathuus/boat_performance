@@ -11,7 +11,7 @@ import {
 } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import type { BoatTrack, TrackPoint } from '@/domain/types';
+import type { BoatTrack } from '@/domain/types';
 import {
   interpolatePosition,
   getPointsUntilTime,
@@ -20,7 +20,6 @@ import {
   calculateDestPoint,
 } from '@/domain/tracks';
 import { formatTime } from '@/lib/time';
-import { getSogColor } from '@/lib/color';
 import { profiler } from '@/lib/performance';
 import { HotlineTrack } from './HotlineTrack';
 
@@ -421,7 +420,7 @@ const BoatTrackRenderer = memo(function BoatTrackRenderer({
  * Get SOG range for color normalization
  * Fixed range: 0-15 knots for consistent color scale
  */
-function getSogRange(boats: BoatTrack[]): { min: number; max: number } {
+function getSogRange(_boats: BoatTrack[]): { min: number; max: number } {
   // Fixed range for consistent color scale across all tracks
   return { min: 0, max: 15 };
 }

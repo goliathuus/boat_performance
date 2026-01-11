@@ -96,7 +96,7 @@ export function useSessionTelemetry(sessionId: string | null): UseSessionTelemet
 
         const boatDisplayName = session.boats && Array.isArray(session.boats) && session.boats.length > 0
           ? session.boats[0].display_name
-          : session.boats?.display_name || null;
+          : null;
 
         // Add session to store
         addSessions([{

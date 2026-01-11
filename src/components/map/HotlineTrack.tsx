@@ -11,6 +11,20 @@ if (typeof window !== 'undefined') {
 // This must be imported after L is set globally
 import 'leaflet-hotline/dist/leaflet.hotline';
 
+// Type definition for Hotline since module augmentation isn't being recognized
+interface HotlineLayer extends L.Layer {
+  setLatLngs(latlngs: Array<[number, number, number]>): this;
+  setOptions(options: {
+    min?: number;
+    max?: number;
+    palette?: Record<number, string>;
+    weight?: number;
+    outlineColor?: string;
+    outlineWidth?: number;
+    opacity?: number;
+  }): this;
+}
+
 interface HotlineTrackProps {
   positions: Array<[number, number, number]>; // [lat, lon, sogValue]
   min: number;
@@ -50,7 +64,7 @@ export function HotlineTrack({ positions, min, max, weight = 2 }: HotlineTrackPr
     return null;
   }
 
-  const hotlineRef = useRef<L.Hotline | null>(null);
+  const hotlineRef = useRef<HotlineLayer | null>(null);
   const positionsRef = useRef<Array<[number, number, number]>>([]);
   const lastParamsRef = useRef<{ min: number; max: number; weight: number }>({ min, max, weight });
 
@@ -86,6 +100,7 @@ export function HotlineTrack({ positions, min, max, weight = 2 }: HotlineTrackPr
       console.warn('[HotlineTrack] leaflet-hotline not found, attempting to load...');
       
       // Try dynamic import
+      // @ts-expect-error - leaflet-hotline module doesn't have type definitions
       import('leaflet-hotline/dist/leaflet.hotline')
         .then((module: any) => {
           console.log('[HotlineTrack] Dynamic import successful', module);
@@ -236,7 +251,7 @@ export function HotlineTrack({ positions, min, max, weight = 2 }: HotlineTrackPr
         outlineColor: 'transparent',
         outlineWidth: 0,
         opacity: 0.7,
-      }) as L.Hotline;
+      }) as HotlineLayer;
 
       console.log('[HotlineTrack] Hotline created, adding to map');
       hotline.addTo(map);
@@ -310,7 +325,7 @@ export function HotlineTrack({ positions, min, max, weight = 2 }: HotlineTrackPr
           outlineColor: 'transparent',
           outlineWidth: 0,
           opacity: 0.7,
-        }) as L.Hotline;
+        }) as HotlineLayer;
 
         hotline.addTo(map);
         hotlineRef.current = hotline;

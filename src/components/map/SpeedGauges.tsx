@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { useRaceStore } from '@/state/useRaceStore';
 import { interpolatePosition } from '@/domain/tracks';
 import { getSogColor } from '@/lib/color';
 import type { BoatTrack } from '@/domain/types';

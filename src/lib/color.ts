@@ -25,7 +25,7 @@ const DISTINCT_COLORS = [
  * Generate a distinct color for a boat based on its ID
  * Uses a predefined palette of distinct colors to ensure visual differentiation
  */
-export function generateBoatColor(boatId: string, saturation = 70, lightness = 50): string {
+export function generateBoatColor(boatId: string, _saturation = 70, _lightness = 50): string {
   // Hash boat ID to get a consistent index
   let hash = 0;
   for (let i = 0; i < boatId.length; i++) {

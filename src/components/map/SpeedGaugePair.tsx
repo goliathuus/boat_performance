@@ -12,7 +12,7 @@ interface SpeedGaugePairProps {
  * Get SOG range for color normalization
  * Fixed range: 0-15 knots for consistent color scale
  */
-function getSogRange(boats: BoatTrack[]): { min: number; max: number } {
+function getSogRange(_boats: BoatTrack[]): { min: number; max: number } {
   // Fixed range for consistent color scale across all tracks
   return { min: 0, max: 15 };
 }

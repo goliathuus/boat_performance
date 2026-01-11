@@ -217,7 +217,7 @@ export async function parseCSV(csvContent: string): Promise<RaceDataset> {
           tMax,
         });
       },
-      error: (error) => {
+      error: (error: unknown) => {
         reject(error);
       },
     });

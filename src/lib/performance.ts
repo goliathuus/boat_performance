@@ -198,8 +198,7 @@ class PerformanceProfiler {
     return JSON.stringify(
       {
         fps: this.fps,
-        metrics: Array.from(this.metrics.entries()).map(([name, metric]) => ({
-          name,
+        metrics: Array.from(this.metrics.entries()).map(([_name, metric]) => ({
           ...metric,
         })),
       },

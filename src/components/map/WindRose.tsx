@@ -168,7 +168,7 @@ export const WindRose = memo(function WindRose({ boats, currentTime, size = 180 
           {(() => {
             // First pass: calculate all label positions
             const labelPositions = boatWindData
-              .map(({ boat, angle, position }, idx) => {
+              .map(({ boat, angle, position }) => {
                 if (angle === null || angle === undefined) return null;
                 
                 const svgAngle = angle;
@@ -178,7 +178,6 @@ export const WindRose = memo(function WindRose({ boats, currentTime, size = 180 
                 const endY = ROSE_SIZE / 2 - Math.cos(rad) * (ROSE_RADIUS - arrowLength);
                 
                 // Initial label position (above arrow tip)
-                const labelRadius = 10; // Radius of label circle
                 const labelOffset = 8; // Distance from arrow tip
                 const labelX = endX;
                 const labelY = endY - labelOffset;
@@ -257,9 +256,8 @@ export const WindRose = memo(function WindRose({ boats, currentTime, size = 180 
             }
             
             // Render arrows with adjusted label positions
-            return labelPositions.map(({ boat, angle, position, rad, endX, endY, labelX, labelY, displayValue }) => {
+            return labelPositions.map(({ boat, rad, endX, endY, labelX, labelY, displayValue }) => {
               // Calculate arrow position (from edge towards center)
-              const arrowLength = ROSE_RADIUS * 0.75;
               const startX = ROSE_SIZE / 2 + Math.sin(rad) * ROSE_RADIUS;
               const startY = ROSE_SIZE / 2 - Math.cos(rad) * ROSE_RADIUS;
               

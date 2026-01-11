@@ -1,6 +1,5 @@
 import { useMemo, memo } from 'react';
 import type { BoatTrack } from '@/domain/types';
-import { Button } from '@/components/ui/button';
 
 interface TimeSeriesGraphProps {
   boats: BoatTrack[];

@@ -156,7 +156,7 @@ function App() {
   }
 
   // Page === 'replay'
-  return <ReplayPage onBack={handleBackToSessions} onOpenAdmin={handleOpenAdmin} onLogout={handleLogout} />;
+  return <ReplayPage onBack={handleBackToSessions} onLogout={handleLogout} />;
 }
 
 export default App;

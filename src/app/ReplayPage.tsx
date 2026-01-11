@@ -10,11 +10,10 @@ import { Button } from '@/components/ui/button';
 
 interface ReplayPageProps {
   onBack: () => void;
-  onOpenAdmin?: () => void;
   onLogout?: () => void;
 }
 
-export function ReplayPage({ onBack, onOpenAdmin, onLogout }: ReplayPageProps) {
+export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
   const selectedEventId = useReplayStore((state) => state.selectedEventId);
   const selectedSessionId = useReplayStore((state) => state.selectedSessionId);
@@ -126,11 +125,6 @@ export function ReplayPage({ onBack, onOpenAdmin, onLogout }: ReplayPageProps) {
           <Button variant="outline" size="sm" onClick={onBack}>
             ← Back
           </Button>
-          {onOpenAdmin && (
-            <Button variant="outline" size="sm" onClick={onOpenAdmin}>
-              Gestion des sessions
-            </Button>
-          )}
           {onLogout && (
             <Button variant="outline" size="sm" onClick={onLogout}>
               Déconnexion

@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useReplayStore } from '@/state/useReplayStore';
 import { useReplayClock } from '@/hooks/useReplayClock';
 import { ReplayMapWithData } from '@/components/replay/ReplayMap';
 import { BoatListPanel } from '@/components/replay/BoatListPanel';
 import { ReplayControls } from '@/components/replay/ReplayControls';
 import { CsvImportButton } from '@/components/replay/CsvImportButton';
+import { ToolsPanel } from '@/components/replay/ToolsPanel';
 import { useEventTelemetry } from '@/hooks/useEventTelemetry';
 import { useSessionTelemetry } from '@/hooks/useSessionTelemetry';
 import { Button } from '@/components/ui/button';
@@ -27,9 +28,17 @@ export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
   const playing = useReplayStore((state) => state.playing);
   const speed = useReplayStore((state) => state.speed);
   const [isExporting, setIsExporting] = useState(false);
+  const [activeTool, setActiveTool] = useState<string | null>(null);
   
   // Track if clock has been initialized to avoid resetting user's cursor position
   const clockInitializedRef = useRef(false);
+  
+  // Store the centerOnBoat function from the map
+  const centerOnBoatRef = useRef<((sessionId: string, currentTime: number) => void) | null>(null);
+  
+  const handleMapReady = useCallback((centerOnBoat: (sessionId: string, currentTime: number) => void) => {
+    centerOnBoatRef.current = centerOnBoat;
+  }, []);
 
   // Load telemetry based on mode: event or individual session
   const { loading: eventLoading } = useEventTelemetry(selectedEventId);
@@ -125,15 +134,29 @@ export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
     <div className="w-screen h-screen overflow-hidden flex flex-col">
       {/* Map */}
       <div className="flex-1 relative">
-        <ReplayMapWithData currentTime={clock.currentTime} />
+        {/* Tools Panel - left side */}
+        <ToolsPanel activeTool={activeTool} onToolChange={setActiveTool} />
+        
+        <ReplayMapWithData 
+          currentTime={clock.currentTime} 
+          onMapReady={handleMapReady}
+          activeTool={activeTool}
+        />
 
         {/* Boat List Panel - overlay top right */}
         <div className="absolute top-4 right-4 z-[1000]">
-          <BoatListPanel currentTime={clock.currentTime} />
+          <BoatListPanel 
+            currentTime={clock.currentTime}
+            onCenterBoat={(sessionId) => {
+              if (centerOnBoatRef.current) {
+                centerOnBoatRef.current(sessionId, clock.currentTime);
+              }
+            }}
+          />
         </div>
 
         {/* Top toolbar */}
-        <div className="absolute top-4 left-4 z-[1000] flex gap-2">
+        <div className="absolute top-4 left-16 z-[1000] flex gap-2">
           <Button variant="outline" size="sm" onClick={onBack}>
             ← Back
           </Button>

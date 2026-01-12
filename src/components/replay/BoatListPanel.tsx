@@ -10,11 +10,14 @@ type SortMode = 'speed' | 'selection';
 interface BoatListPanelProps {
   sortMode?: SortMode;
   currentTime: number;
+  onCenterBoat?: (sessionId: string) => void;
 }
 
-export function BoatListPanel({ sortMode = 'speed', currentTime }: BoatListPanelProps) {
+export function BoatListPanel({ sortMode = 'speed', currentTime, onCenterBoat }: BoatListPanelProps) {
   const sessions = useReplayStore((state) => state.sessions);
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
+  const focusSessionId = useReplayStore((state) => state.focusSessionId);
+  const setFocusSession = useReplayStore((state) => state.setFocusSession);
   const [isExporting, setIsExporting] = useState(false);
 
   // Calculate current speed for each session
@@ -111,11 +114,28 @@ export function BoatListPanel({ sortMode = 'speed', currentTime }: BoatListPanel
             No boats selected
           </div>
         ) : (
-          sortedBoats.map((boat) => (
+          sortedBoats.map((boat) => {
+            const isFocused = focusSessionId === boat.sessionId;
+            return (
             <div
               key={boat.sessionId}
-              className={`flex items-center gap-3 p-2 rounded ${
+              onClick={() => {
+                // Toggle: si déjà focusé, dé-focuser, sinon focuser
+                setFocusSession(isFocused ? null : boat.sessionId);
+              }}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                // Center map on boat position at current time
+                if (onCenterBoat) {
+                  onCenterBoat(boat.sessionId);
+                }
+              }}
+              className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${
                 boat.active ? '' : 'opacity-50'
+              } ${
+                isFocused 
+                  ? 'ring-2 ring-primary bg-accent/50 hover:bg-accent/70' 
+                  : 'hover:bg-accent/30'
               }`}
             >
               {/* Color swatch */}
@@ -146,7 +166,8 @@ export function BoatListPanel({ sortMode = 'speed', currentTime }: BoatListPanel
                 )}
               </div>
             </div>
-          ))
+          );
+          })
         )}
       </div>
     </div>

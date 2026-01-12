@@ -1,5 +1,5 @@
-import { useEffect, useRef, useMemo, memo } from 'react';
-import { MapContainer, TileLayer, Polyline, Marker, Tooltip, Popup, useMap } from 'react-leaflet';
+import { useEffect, useRef, useMemo, memo, useCallback, useState } from 'react';
+import { MapContainer, TileLayer, Polyline, Marker, Tooltip, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useReplayStore } from '@/state/useReplayStore';
@@ -70,6 +70,7 @@ interface BoatMarkerProps {
   speed: number | null;
   cog: number | null;
   currentTime: number | null;
+  onFocus?: (sessionId: string) => void;
 }
 
 // Memoize boat icons to prevent recreation on every render
@@ -83,13 +84,23 @@ function getBoatIcon(cog: number | undefined, color: string): L.DivIcon {
   return boatIconCache.get(key)!;
 }
 
-const BoatMarker = memo(function BoatMarker({ position, color, name, speed, cog, currentTime }: BoatMarkerProps) {
+const BoatMarker = memo(function BoatMarker({ position, color, name, speed, cog, currentTime, sessionId, onFocus }: BoatMarkerProps) {
   if (!position) return null;
 
   const icon = getBoatIcon(cog ?? undefined, color);
 
   return (
-    <Marker position={position} icon={icon}>
+    <Marker 
+      position={position} 
+      icon={icon}
+      eventHandlers={{
+        click: () => {
+          if (onFocus) {
+            onFocus(sessionId);
+          }
+        },
+      }}
+    >
       <Tooltip permanent={false} direction="top" offset={[0, -12]}>
         <div className="text-xs">
           <div className="font-semibold">{name}</div>
@@ -115,15 +126,184 @@ const BoatMarker = memo(function BoatMarker({ position, color, name, speed, cog,
   );
 });
 
-// Memoized component to prevent unnecessary re-renders
-interface ReplayMapContentProps {
+// Component to access map instance and expose center function
+interface MapControllerProps {
+  onMapReady?: (centerOnBoat: (sessionId: string, currentTime: number) => void) => void;
   currentTime: number;
 }
 
-const ReplayMapContent = memo(function ReplayMapContent({ currentTime }: ReplayMapContentProps) {
+function MapController({ onMapReady, currentTime }: MapControllerProps) {
+  const map = useMap();
+  const sessions = useReplayStore((state) => state.sessions);
+
+  const centerOnBoat = useCallback((sessionId: string, time: number) => {
+    const session = sessions.get(sessionId);
+    if (!session || session.points.length === 0) return;
+    
+    const closestPoint = findClosestPoint(session.points, time);
+    if (closestPoint) {
+      const currentZoom = map.getZoom();
+      map.setView([closestPoint.lat, closestPoint.lon], currentZoom, {
+        animate: true,
+        duration: 0.5,
+      });
+    }
+  }, [sessions, map]);
+
+  useEffect(() => {
+    if (onMapReady) {
+      onMapReady(centerOnBoat);
+    }
+  }, [onMapReady, centerOnBoat]);
+
+  return null;
+}
+
+// Calculate distance between two GPS points using Haversine formula
+function calculateDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const R = 6371; // Earth radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distance in km
+}
+
+// Component to handle map clicks for ruler tool
+interface MapClickHandlerProps {
+  activeTool: string | null;
+  onRulerPointsChange: (start: [number, number] | null, end: [number, number] | null) => void;
+}
+
+function MapClickHandler({ activeTool, onRulerPointsChange }: MapClickHandlerProps) {
+  const map = useMap();
+  const rulerStartRef = useRef<[number, number] | null>(null);
+
+  useEffect(() => {
+    if (activeTool !== 'ruler') {
+      // Reset ruler when tool is deactivated
+      rulerStartRef.current = null;
+      onRulerPointsChange(null, null);
+      return;
+    }
+
+    const handleClick = (e: L.LeafletMouseEvent) => {
+      if (activeTool === 'ruler') {
+        const point: [number, number] = [e.latlng.lat, e.latlng.lng];
+        
+        if (!rulerStartRef.current) {
+          // First click: set start point
+          rulerStartRef.current = point;
+          onRulerPointsChange(point, null);
+        } else {
+          // Second click: set end point
+          onRulerPointsChange(rulerStartRef.current, point);
+          rulerStartRef.current = null; // Reset for next measurement
+        }
+      }
+    };
+
+    map.on('click', handleClick);
+
+    return () => {
+      map.off('click', handleClick);
+    };
+  }, [map, activeTool, onRulerPointsChange]);
+
+  return null;
+}
+
+// Component to show temporary line from start point to mouse position
+interface RulerTemporaryLineProps {
+  startPoint: [number, number];
+}
+
+function RulerTemporaryLine({ startPoint }: RulerTemporaryLineProps) {
+  const [mousePosition, setMousePosition] = useState<[number, number] | null>(null);
+  const map = useMap();
+
+  useMapEvents({
+    mousemove: (e) => {
+      setMousePosition([e.latlng.lat, e.latlng.lng]);
+    },
+    mouseout: () => {
+      setMousePosition(null);
+    },
+  });
+
+  if (!mousePosition) return null;
+
+  const distance = calculateDistance(startPoint[0], startPoint[1], mousePosition[0], mousePosition[1]);
+
+  return (
+    <>
+      <Polyline
+        positions={[startPoint, mousePosition]}
+        pathOptions={{
+          color: '#3b82f6',
+          weight: 2,
+          opacity: 0.6,
+          dashArray: '5, 5',
+          lineCap: 'round',
+          lineJoin: 'round',
+        }}
+      />
+      <Marker position={mousePosition} interactive={false}>
+        <Tooltip permanent={true} direction="top">
+          <div className="text-xs">
+            {distance < 1
+              ? `${(distance * 1000).toFixed(0)} m`
+              : `${distance.toFixed(2)} km`}
+          </div>
+        </Tooltip>
+      </Marker>
+    </>
+  );
+}
+
+// Memoized component to prevent unnecessary re-renders
+interface ReplayMapContentProps {
+  currentTime: number;
+  onMapReady?: (centerOnBoat: (sessionId: string, currentTime: number) => void) => void;
+  activeTool?: string | null;
+}
+
+const ReplayMapContent = memo(function ReplayMapContent({ currentTime, onMapReady, activeTool }: ReplayMapContentProps) {
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
   const focusSessionId = useReplayStore((state) => state.focusSessionId);
+  const setFocusSession = useReplayStore((state) => state.setFocusSession);
   const sessions = useReplayStore((state) => state.sessions);
+  
+  const [rulerStart, setRulerStart] = useState<[number, number] | null>(null);
+  const [rulerEnd, setRulerEnd] = useState<[number, number] | null>(null);
+  
+  const handleBoatFocus = (sessionId: string) => {
+    // Toggle: si déjà focusé, dé-focuser, sinon focuser
+    setFocusSession(focusSessionId === sessionId ? null : sessionId);
+  };
+  
+  const handleRulerPointsChange = useCallback((start: [number, number] | null, end: [number, number] | null) => {
+    setRulerStart(start);
+    setRulerEnd(end);
+  }, []);
+  
+  // Reset ruler when tool changes
+  useEffect(() => {
+    if (activeTool !== 'ruler') {
+      setRulerStart(null);
+      setRulerEnd(null);
+    }
+  }, [activeTool]);
 
 
   // Display all selected sessions, even if they don't have points loaded yet
@@ -269,9 +449,80 @@ const ReplayMapContent = memo(function ReplayMapContent({ currentTime }: ReplayM
     });
   }, [sessionsToDisplay, sessions, throttledCurrentTime, focusSessionId]);
 
+  // Calculate distance for ruler tool
+  const rulerDistance = useMemo(() => {
+    if (rulerStart && rulerEnd) {
+      return calculateDistance(rulerStart[0], rulerStart[1], rulerEnd[0], rulerEnd[1]);
+    }
+    return null;
+  }, [rulerStart, rulerEnd]);
+
   return (
     <>
+      <MapController onMapReady={onMapReady} currentTime={currentTime} />
+      <MapClickHandler activeTool={activeTool ?? null} onRulerPointsChange={handleRulerPointsChange} />
       <FitBounds bounds={bounds} enabled={true} />
+      
+      {/* Ruler tool visualization */}
+      {activeTool === 'ruler' && (
+        <>
+          {/* Start point marker */}
+          {rulerStart && (
+            <Marker position={rulerStart}>
+              <Tooltip permanent={true} direction="top">
+                <div className="text-xs font-semibold">Départ</div>
+              </Tooltip>
+            </Marker>
+          )}
+          
+          {/* End point marker */}
+          {rulerEnd && (
+            <Marker position={rulerEnd}>
+              <Tooltip permanent={true} direction="top">
+                <div className="text-xs font-semibold">Arrivée</div>
+              </Tooltip>
+            </Marker>
+          )}
+          
+          {/* Ruler line */}
+          {rulerStart && rulerEnd && (
+            <Polyline
+              positions={[rulerStart, rulerEnd]}
+              pathOptions={{
+                color: '#3b82f6',
+                weight: 3,
+                opacity: 0.8,
+                dashArray: '10, 5',
+                lineCap: 'round',
+                lineJoin: 'round',
+              }}
+            >
+              <Tooltip permanent={true} direction="center">
+                <div className="text-sm font-semibold">
+                  {rulerDistance !== null ? (
+                    <>
+                      {rulerDistance < 1
+                        ? `${(rulerDistance * 1000).toFixed(0)} m`
+                        : `${rulerDistance.toFixed(2)} km`}
+                      <br />
+                      <span className="text-xs text-muted-foreground">
+                        {(rulerDistance * 0.539957).toFixed(2)} NM
+                      </span>
+                    </>
+                  ) : (
+                    '0 m'
+                  )}
+                </div>
+              </Tooltip>
+            </Polyline>
+          )}
+          
+          {/* Temporary line from start to mouse (when start is set but end is not) */}
+          {rulerStart && !rulerEnd && (
+            <RulerTemporaryLine startPoint={rulerStart} />
+          )}
+        </>
+      )}
 
       {/* Render progressive track + markers */}
       {mapElements.map(({ sessionId, session, progressiveTrackPositions, markerPosition, markerSpeed, markerCog, isFocused, isLoading }) => {
@@ -290,8 +541,12 @@ const ReplayMapContent = memo(function ReplayMapContent({ currentTime }: ReplayM
                   positions={progressiveTrackPositions}
                   pathOptions={{
                     color: session.color,
-                    weight: isFocused ? 5 : 3,
+                    weight: isFocused ? 6 : 3,
                     opacity: isFocused ? 1.0 : 0.8,
+                    // Add dash pattern for focused boat to make it stand out more
+                    dashArray: isFocused ? undefined : undefined,
+                    lineCap: 'round',
+                    lineJoin: 'round',
                   }}
                 />
             ) : null}
@@ -307,6 +562,7 @@ const ReplayMapContent = memo(function ReplayMapContent({ currentTime }: ReplayM
                 speed={markerSpeed}
                 cog={markerCog}
                 currentTime={throttledCurrentTime}
+                onFocus={handleBoatFocus}
               />
             )}
           </div>
@@ -318,9 +574,11 @@ const ReplayMapContent = memo(function ReplayMapContent({ currentTime }: ReplayM
 
 interface ReplayMapProps {
   currentTime: number;
+  onMapReady?: (centerOnBoat: (sessionId: string, currentTime: number) => void) => void;
+  activeTool?: string | null;
 }
 
-export function ReplayMap({ currentTime }: ReplayMapProps) {
+export function ReplayMap({ currentTime, onMapReady, activeTool }: ReplayMapProps) {
   return (
     <MapContainer
       center={[46.0, -1.0]}
@@ -332,7 +590,7 @@ export function ReplayMap({ currentTime }: ReplayMapProps) {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
       />
-      <ReplayMapContent currentTime={currentTime} />
+      <ReplayMapContent currentTime={currentTime} onMapReady={onMapReady} activeTool={activeTool} />
     </MapContainer>
   );
 }
@@ -340,9 +598,11 @@ export function ReplayMap({ currentTime }: ReplayMapProps) {
 // Export wrapper (data loading is now handled by useEventTelemetry)
 interface ReplayMapWithDataProps {
   currentTime: number;
+  onMapReady?: (centerOnBoat: (sessionId: string, currentTime: number) => void) => void;
+  activeTool?: string | null;
 }
 
-export function ReplayMapWithData({ currentTime }: ReplayMapWithDataProps) {
-  return <ReplayMap currentTime={currentTime} />;
+export function ReplayMapWithData({ currentTime, onMapReady, activeTool }: ReplayMapWithDataProps) {
+  return <ReplayMap currentTime={currentTime} onMapReady={onMapReady} activeTool={activeTool} />;
 }
 

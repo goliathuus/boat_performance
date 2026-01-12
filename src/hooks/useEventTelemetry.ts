@@ -102,9 +102,7 @@ export function useEventTelemetry(eventId: string | null): UseEventTelemetryResu
     // Load telemetry for sessions that need it
     // Use Promise.allSettled to ensure all sessions are attempted even if some fail
     Promise.allSettled(
-      sessionsToLoad.map(async (sessionId, index) => {
-        const loadStart = Date.now();
-        
+      sessionsToLoad.map(async (sessionId) => {
         // Find session to get its specific dates
         const session = sessions.find(s => s.id === sessionId);
         if (!session) {
@@ -117,9 +115,7 @@ export function useEventTelemetry(eventId: string | null): UseEventTelemetryResu
           ? new Date(session.ended_at)
           : new Date();
 
-
         const points = await getTelemetryAll(sessionId, sessionStartsAt, sessionEndsAt);
-        const loadTime = Date.now() - loadStart;
         
 
         if (abortControllerRef.current?.signal.aborted) {

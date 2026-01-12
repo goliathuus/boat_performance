@@ -132,7 +132,7 @@ interface MapControllerProps {
   currentTime: number;
 }
 
-function MapController({ onMapReady, currentTime }: MapControllerProps) {
+function MapController({ onMapReady }: MapControllerProps) {
   const map = useMap();
   const sessions = useReplayStore((state) => state.sessions);
 
@@ -198,18 +198,16 @@ function MapClickHandler({ activeTool, onRulerPointsChange }: MapClickHandlerPro
     }
 
     const handleClick = (e: L.LeafletMouseEvent) => {
-      if (activeTool === 'ruler') {
-        const point: [number, number] = [e.latlng.lat, e.latlng.lng];
-        
-        if (!rulerStartRef.current) {
-          // First click: set start point
-          rulerStartRef.current = point;
-          onRulerPointsChange(point, null);
-        } else {
-          // Second click: set end point
-          onRulerPointsChange(rulerStartRef.current, point);
-          rulerStartRef.current = null; // Reset for next measurement
-        }
+      const point: [number, number] = [e.latlng.lat, e.latlng.lng];
+      
+      if (!rulerStartRef.current) {
+        // First click: set start point
+        rulerStartRef.current = point;
+        onRulerPointsChange(point, null);
+      } else {
+        // Second click: set end point
+        onRulerPointsChange(rulerStartRef.current, point);
+        rulerStartRef.current = null; // Reset for next measurement
       }
     };
 
@@ -230,7 +228,6 @@ interface RulerTemporaryLineProps {
 
 function RulerTemporaryLine({ startPoint }: RulerTemporaryLineProps) {
   const [mousePosition, setMousePosition] = useState<[number, number] | null>(null);
-  const map = useMap();
 
   useMapEvents({
     mousemove: (e) => {

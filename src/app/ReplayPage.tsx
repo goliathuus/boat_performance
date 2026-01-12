@@ -27,6 +27,7 @@ export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
   const globalTMax = useReplayStore((state) => state.globalTMax);
   const playing = useReplayStore((state) => state.playing);
   const speed = useReplayStore((state) => state.speed);
+  const setWindowStartTime = useReplayStore((state) => state.setWindowStartTime);
   const [isExporting, setIsExporting] = useState(false);
   const [activeTool, setActiveTool] = useState<string | null>(null);
   
@@ -54,7 +55,7 @@ export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
     speed
   );
 
-  // Initialize clock time only once when data is first loaded
+  // Initialize clock time and windowStartTime only once when data is first loaded
   useEffect(() => {
     if (eventLoading || sessionLoading) {
       // Reset initialization flag when loading starts
@@ -63,9 +64,10 @@ export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
     }
     if (globalTMin !== null && globalTMax !== null && !clockInitializedRef.current) {
       clock.setCurrentTime(globalTMax);
+      setWindowStartTime(globalTMin, globalTMax);
       clockInitializedRef.current = true;
     }
-  }, [globalTMin, globalTMax, clock, eventLoading, sessionLoading]);
+  }, [globalTMin, globalTMax, clock, eventLoading, sessionLoading, setWindowStartTime]);
 
   // Sync store playing/speed to clock (one-way: store -> clock)
   const playingRef = useRef(playing);

@@ -19,6 +19,7 @@ interface ReplayState {
   speed: number; // 0.5, 1, 2, 4, 8
   globalTMin: number | null;
   globalTMax: number | null;
+  windowStartTime: number | null; // Début de la fenêtre d'affichage
   selectedEventId: string | null;
   selectedSessionId: string | null; // For individual session replay mode
   focusSessionId: string | null;
@@ -31,6 +32,7 @@ interface ReplayState {
   updateSessionTimeRange: (sessionId: string) => void;
   setPlaying: (playing: boolean) => void;
   setSpeed: (speed: number) => void;
+  setWindowStartTime: (time: number, currentTime?: number) => void;
   setSelectedEvent: (eventId: string | null) => void;
   setSelectedSession: (sessionId: string | null) => void;
   setFocusSession: (sessionId: string | null) => void;
@@ -44,6 +46,7 @@ export const useReplayStore = create<ReplayState>((set, get) => ({
   speed: 1,
   globalTMin: null,
   globalTMax: null,
+  windowStartTime: null,
   selectedEventId: null,
   selectedSessionId: null,
   focusSessionId: null,
@@ -211,6 +214,15 @@ export const useReplayStore = create<ReplayState>((set, get) => ({
     set({ speed });
   },
 
+  setWindowStartTime: (time, currentTime) => {
+    const { globalTMin, globalTMax } = get();
+    if (globalTMin === null || globalTMax === null) return;
+    // Clamp between globalTMin and currentTime (or globalTMax if currentTime not provided)
+    const maxTime = currentTime !== undefined ? Math.min(currentTime, globalTMax) : globalTMax;
+    const clampedTime = Math.max(globalTMin, Math.min(time, maxTime));
+    set({ windowStartTime: clampedTime });
+  },
+
   setSelectedEvent: (eventId) => {
     // When selecting an event, clear selectedSessionId (only one mode at a time)
     set({ selectedEventId: eventId, selectedSessionId: null });
@@ -233,6 +245,7 @@ export const useReplayStore = create<ReplayState>((set, get) => ({
       speed: 1,
       globalTMin: null,
       globalTMax: null,
+      windowStartTime: null,
       selectedEventId: null,
       selectedSessionId: null,
       focusSessionId: null,

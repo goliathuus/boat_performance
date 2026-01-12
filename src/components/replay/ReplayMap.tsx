@@ -280,6 +280,7 @@ const ReplayMapContent = memo(function ReplayMapContent({ currentTime, onMapRead
   const focusSessionId = useReplayStore((state) => state.focusSessionId);
   const setFocusSession = useReplayStore((state) => state.setFocusSession);
   const sessions = useReplayStore((state) => state.sessions);
+  const windowStartTime = useReplayStore((state) => state.windowStartTime);
   
   const [rulerStart, setRulerStart] = useState<[number, number] | null>(null);
   const [rulerEnd, setRulerEnd] = useState<[number, number] | null>(null);
@@ -359,6 +360,24 @@ const ReplayMapContent = memo(function ReplayMapContent({ currentTime, onMapRead
     return throttled;
   }, [currentTime]);
 
+  // Helper function for binary search to find the first point >= time
+  function binarySearchStart(points: Array<{ t: number }>, time: number): number {
+    let left = 0;
+    let right = points.length - 1;
+    let result = 0; // Default to 0 if all points are >= time
+
+    while (left <= right) {
+      const mid = Math.floor((left + right) / 2);
+      if (points[mid].t < time) {
+        left = mid + 1;
+      } else {
+        result = mid;
+        right = mid - 1;
+      }
+    }
+    return result;
+  }
+
   const mapElements = useMemo(() => {
     // Display all selected sessions, even if they don't have points yet
     return sessionsToDisplay.map((sessionId) => {
@@ -380,20 +399,20 @@ const ReplayMapContent = memo(function ReplayMapContent({ currentTime, onMapRead
 
       const isFocused = focusSessionId === sessionId;
 
-      // Progressive track: ALL points up to currentTime (entire past track)
+      // Progressive track: points within [windowStartTime, currentTime] window
       // If currentTime is null, show full track (all points)
       // If currentTime is before session.tMin, don't show track at all
-      // Optimized: use binary search to find cutoff point instead of filtering all points
+      // Optimized: use binary search to find cutoff points instead of filtering all points
       let progressiveTrackPositions: Array<[number, number]> = [];
+      let startIndex = 0;
       let endIndex: number | 'all' = 'all';
       if (session.points.length > 0) {
-        // Check if currentTime is before the session starts
+        // Determine endIndex based on throttledCurrentTime
         if (throttledCurrentTime !== null && throttledCurrentTime < session.tMin) {
           // Don't show track if cursor is before session start
           progressiveTrackPositions = [];
         } else if (throttledCurrentTime === null) {
-          // Show full track when currentTime is not set yet
-          progressiveTrackPositions = session.points.map((p) => [p.lat, p.lon] as [number, number]);
+          endIndex = session.points.length;
         } else {
           // Binary search to find the last point where t <= currentTime
           // Since points are sorted by time, we can use binary search
@@ -412,11 +431,26 @@ const ReplayMapContent = memo(function ReplayMapContent({ currentTime, onMapRead
               right = mid - 1;
             }
           }
-          
-          // Use slice instead of filter - much faster for large arrays
-          progressiveTrackPositions = session.points
-            .slice(0, endIndex)
-            .map((p) => [p.lat, p.lon] as [number, number]);
+        }
+
+        // Determine startIndex based on windowStartTime
+        if (windowStartTime !== null && windowStartTime > session.tMin) {
+          startIndex = binarySearchStart(session.points, windowStartTime);
+        }
+
+        // Slice points within the [windowStartTime, currentTime] range
+        if (progressiveTrackPositions.length === 0) {
+          if (endIndex === 'all') {
+            // Show full track when currentTime is not set yet
+            progressiveTrackPositions = session.points
+              .slice(startIndex)
+              .map((p) => [p.lat, p.lon] as [number, number]);
+          } else {
+            // Slice points within the window
+            progressiveTrackPositions = session.points
+              .slice(startIndex, endIndex)
+              .map((p) => [p.lat, p.lon] as [number, number]);
+          }
         }
       }
 
@@ -444,7 +478,7 @@ const ReplayMapContent = memo(function ReplayMapContent({ currentTime, onMapRead
         isLoading: false,
       };
     });
-  }, [sessionsToDisplay, sessions, throttledCurrentTime, focusSessionId]);
+  }, [sessionsToDisplay, sessions, throttledCurrentTime, focusSessionId, windowStartTime]);
 
   // Calculate distance for ruler tool
   const rulerDistance = useMemo(() => {

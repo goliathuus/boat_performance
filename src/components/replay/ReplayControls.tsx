@@ -1,6 +1,6 @@
 import { useReplayStore } from '@/state/useReplayStore';
 import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
+import { RangeSlider } from '@/components/ui/rangeSlider';
 import { formatTime } from '@/lib/time';
 
 interface ReplayControlsProps {
@@ -13,16 +13,19 @@ export function ReplayControls({ currentTime, setCurrentTime }: ReplayControlsPr
   const speed = useReplayStore((state) => state.speed);
   const globalTMin = useReplayStore((state) => state.globalTMin);
   const globalTMax = useReplayStore((state) => state.globalTMax);
+  const windowStartTime = useReplayStore((state) => state.windowStartTime);
   const setPlaying = useReplayStore((state) => state.setPlaying);
   const setSpeed = useReplayStore((state) => state.setSpeed);
+  const setWindowStartTime = useReplayStore((state) => state.setWindowStartTime);
 
   const speedOptions = [0.5, 1, 2, 4, 8];
 
-  if (globalTMin === null || globalTMax === null) {
+  if (globalTMin === null || globalTMax === null || windowStartTime === null) {
     return null;
   }
 
-  const progress = ((currentTime - globalTMin) / (globalTMax - globalTMin)) * 100;
+  const startProgress = ((windowStartTime - globalTMin) / (globalTMax - globalTMin)) * 100;
+  const currentProgress = ((currentTime - globalTMin) / (globalTMax - globalTMin)) * 100;
 
   return (
     <div className="bg-background/95 backdrop-blur-sm border-t p-4">
@@ -38,23 +41,34 @@ export function ReplayControls({ currentTime, setCurrentTime }: ReplayControlsPr
           </Button>
 
           <div className="flex-1">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm text-muted-foreground">
-                {formatTime(currentTime)}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                {formatTime(globalTMax)}
-              </span>
+            <div className="mb-2 space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground font-medium min-w-[50px]">Start:</span>
+                <span className="text-sm text-blue-500 font-semibold">
+                  {formatTime(windowStartTime)}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground font-medium min-w-[50px]">End:</span>
+                <span className="text-sm text-green-500 font-semibold">
+                  {formatTime(currentTime)}
+                </span>
+                <span className="text-xs text-muted-foreground ml-auto">
+                  Max: {formatTime(globalTMax)}
+                </span>
+              </div>
             </div>
-            <Slider
-              value={progress}
-              onValueChange={(value) => {
-                const newTime = globalTMin + (value / 100) * (globalTMax - globalTMin);
-                setCurrentTime(newTime);
-              }}
+            <RangeSlider
               min={0}
               max={100}
               step={0.1}
+              value={[startProgress, currentProgress]}
+              onValueChange={([newStartProgress, newCurrentProgress]) => {
+                const newWindowTime = globalTMin + (newStartProgress / 100) * (globalTMax - globalTMin);
+                const newCurrentTime = globalTMin + (newCurrentProgress / 100) * (globalTMax - globalTMin);
+                setWindowStartTime(newWindowTime, newCurrentTime);
+                setCurrentTime(newCurrentTime);
+              }}
               className="w-full"
             />
           </div>

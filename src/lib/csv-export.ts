@@ -48,7 +48,7 @@ export function exportSessionToCSV(sessionId: string, sessionData: SessionData):
   }
 
   const boatId = sessionId;
-  const boatName = sessionData.boatDisplayName || sessionData.name || boatId;
+  const boatName = sessionData.name || boatId;
 
   // Convert all points to CSV rows
   const rows = sessionData.points.map((point) =>
@@ -88,7 +88,7 @@ export function exportSessionsToCSV(
     }
 
     const boatId = sessionId;
-    const boatName = sessionData.boatDisplayName || sessionData.name || boatId;
+    const boatName = sessionData.name || boatId;
 
     // Convert all points to CSV rows
     const rows = sessionData.points.map((point) =>

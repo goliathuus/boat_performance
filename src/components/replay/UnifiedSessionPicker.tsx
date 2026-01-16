@@ -360,7 +360,7 @@ export function UnifiedSessionPicker({ onSessionsSelected, onLogout, onOpenAdmin
                                     />
                                     <div className="flex-1">
                                       <div className="font-medium">
-                                        {session.boat_display_name || session.name}
+                                        {session.name}
                                       </div>
                                       <div className="text-sm text-muted-foreground">
                                         {new Date(session.started_at).toLocaleString()}
@@ -416,7 +416,7 @@ export function UnifiedSessionPicker({ onSessionsSelected, onLogout, onOpenAdmin
                         className="w-4 h-4"
                       />
                       <div className="flex-1">
-                        <div className="text-sm text-muted-foreground">{session.boat_display_name || session.name}</div>
+                        <div className="text-sm text-muted-foreground">{session.name}</div>
                         <div className="text-xs text-muted-foreground mt-1">
                           <div>
                             <span className="font-medium">Started:</span>{' '}

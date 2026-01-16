@@ -151,7 +151,7 @@ export function EventDetailModal({
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold mb-2">{session.boat_display_name || session.name}</div>
+                        <div className="font-semibold mb-2">{session.name}</div>
                         <div className="space-y-1 text-sm text-muted-foreground">
                           <div>
                             <span className="font-medium">Started:</span>{' '}
@@ -163,14 +163,6 @@ export function EventDetailModal({
                               {formatDateTime(session.ended_at)}
                             </div>
                           )}
-                          
-                          {/* Display boat name if available */}
-                          {session.boat_display_name && (
-                            <div>
-                              <span className="font-medium">Boat:</span> {session.boat_display_name}
-                            </div>
-                          )}
-                          
                           {/* Display telemetry count */}
                           {session.telemetry_count !== undefined && (
                             <div>
@@ -195,11 +187,6 @@ export function EventDetailModal({
                           {session.telemetry_count !== undefined && session.telemetry_count > 0 && (
                             <span className="inline-flex items-center px-2 py-1 rounded-md bg-blue-500/10 text-blue-700 dark:text-blue-300 text-xs font-medium">
                               📊 {session.telemetry_count.toLocaleString()} points
-                            </span>
-                          )}
-                          {session.boat_display_name && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-md bg-green-500/10 text-green-700 dark:text-green-300 text-xs font-medium">
-                              🚤 {session.boat_display_name}
                             </span>
                           )}
                         </div>

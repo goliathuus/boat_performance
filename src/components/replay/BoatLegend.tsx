@@ -37,7 +37,7 @@ export function BoatLegend({ className }: BoatLegendProps) {
             if (!session) return null;
 
             const isHidden = hiddenSessions.has(sessionId);
-            const displayName = session.boatDisplayName || session.name;
+            const displayName = session.name;
 
             return (
               <label

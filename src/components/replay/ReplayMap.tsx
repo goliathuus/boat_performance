@@ -329,7 +329,7 @@ const ReplayMapContent = memo(function ReplayMapContent({ currentTime, onMapRead
         if (!session) return null;
         return {
           id: session.id,
-          name: session.boatDisplayName || session.name,
+          name: session.name,
           color: session.color,
           points: session.points,
         };
@@ -624,7 +624,7 @@ const ReplayMapContent = memo(function ReplayMapContent({ currentTime, onMapRead
                 sessionId={sessionId}
                 position={markerPosition}
                 color={session.color}
-                name={session.boatDisplayName || session.name}
+                name={session.name}
                 speed={markerSpeed}
                 cog={markerCog}
                 currentTime={throttledCurrentTime}

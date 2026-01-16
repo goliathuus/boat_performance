@@ -125,9 +125,9 @@ function App() {
         session.event_id || null
       );
       
-      const boatDisplayName = session.boats && Array.isArray(session.boats) && session.boats.length > 0
-        ? session.boats[0].display_name
-        : session.boats?.display_name || null;
+      const boatDisplayName = Array.isArray(session.boats) && session.boats.length > 0
+        ? session.boats[0]?.display_name ?? null
+        : null;
 
       store.addSession(sessionId, session.name, tMin, tMax, boatDisplayName || undefined);
       store.setSelectedSessions([sessionId]);
@@ -136,6 +136,7 @@ function App() {
   };
 
   const handleReplayMultipleFromAdmin = (sessionIds: string[]) => {
+    void sessionIds;
     resetReplay();
     setPage('replay');
   };

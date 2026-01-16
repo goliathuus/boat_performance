@@ -61,4 +61,6 @@ export type AdminSession = {
   boat_id: string | null;
   user_id: string;
   event_id: string;
+  telemetry_count?: number;
+  boat_display_name?: string | null;
 };

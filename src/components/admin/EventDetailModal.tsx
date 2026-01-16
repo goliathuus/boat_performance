@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getEventSessions, deleteSession } from '@/lib/supabase-admin';
+import { useReplayStore } from '@/state/useReplayStore';
 import { Button } from '@/components/ui/button';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import type { AdminSession } from '@/domain/types';
@@ -22,6 +23,7 @@ interface EventDetailModalProps {
   eventCode: string;
   onClose: () => void;
   onReplay: (sessionId: string) => void;
+  onReplayMultiple?: (sessionIds: string[]) => void;
 }
 
 export function EventDetailModal({
@@ -31,12 +33,15 @@ export function EventDetailModal({
   eventCode,
   onClose,
   onReplay,
+  onReplayMultiple,
 }: EventDetailModalProps) {
   const [sessions, setSessions] = useState<AdminSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<AdminSession | null>(null);
+  const addSessions = useReplayStore((state) => state.addSessions);
+  const setSelectedSessions = useReplayStore((state) => state.setSelectedSessions);
 
   useEffect(() => {
     if (isOpen && eventId) {
@@ -87,9 +92,39 @@ export function EventDetailModal({
               <h2 className="text-2xl font-semibold">{eventTitle}</h2>
               <p className="text-sm text-muted-foreground font-mono">{eventCode}</p>
             </div>
-            <Button variant="outline" size="sm" onClick={onClose}>
-              Close
-            </Button>
+            <div className="flex gap-2">
+              {sessions.length > 0 && onReplayMultiple && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => {
+                    const sessionIds = sessions.map((s) => s.id);
+                    // Add sessions to store
+                    const sessionsToAdd = sessions.map((session) => {
+                      const tMin = new Date(session.started_at).getTime();
+                      const tMax = session.ended_at
+                        ? new Date(session.ended_at).getTime()
+                        : tMin;
+                      return {
+                        sessionId: session.id,
+                        name: session.name,
+                        tMin,
+                        tMax,
+                        boatDisplayName: session.boat_display_name || undefined,
+                      };
+                    });
+                    addSessions(sessionsToAdd);
+                    setSelectedSessions(sessionIds);
+                    onReplayMultiple(sessionIds);
+                  }}
+                >
+                  Replay All ({sessions.length})
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={onClose}>
+                Close
+              </Button>
+            </div>
           </div>
 
           {error && (
@@ -116,7 +151,7 @@ export function EventDetailModal({
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold mb-2">{session.name}</div>
+                        <div className="font-semibold mb-2">{session.boat_display_name || session.name}</div>
                         <div className="space-y-1 text-sm text-muted-foreground">
                           <div>
                             <span className="font-medium">Started:</span>{' '}
@@ -128,10 +163,44 @@ export function EventDetailModal({
                               {formatDateTime(session.ended_at)}
                             </div>
                           )}
-                          {session.boat_id && (
+                          
+                          {/* Display boat name if available */}
+                          {session.boat_display_name && (
                             <div>
-                              <span className="font-medium">Boat ID:</span> {session.boat_id}
+                              <span className="font-medium">Boat:</span> {session.boat_display_name}
                             </div>
+                          )}
+                          
+                          {/* Display telemetry count */}
+                          {session.telemetry_count !== undefined && (
+                            <div>
+                              <span className="font-medium">Data points:</span>{' '}
+                              <span className="font-mono">
+                                {session.telemetry_count.toLocaleString()}
+                              </span>
+                            </div>
+                          )}
+                          
+                          {/* Fallback: show boat_id if no display name */}
+                          {session.boat_id && !session.boat_display_name && (
+                            <div>
+                              <span className="font-medium">Boat ID:</span>{' '}
+                              <span className="font-mono text-xs">{session.boat_id}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Visual badges for statistics */}
+                        <div className="flex gap-2 mt-2 flex-wrap">
+                          {session.telemetry_count !== undefined && session.telemetry_count > 0 && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-md bg-blue-500/10 text-blue-700 dark:text-blue-300 text-xs font-medium">
+                              📊 {session.telemetry_count.toLocaleString()} points
+                            </span>
+                          )}
+                          {session.boat_display_name && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-md bg-green-500/10 text-green-700 dark:text-green-300 text-xs font-medium">
+                              🚤 {session.boat_display_name}
+                            </span>
                           )}
                         </div>
                       </div>

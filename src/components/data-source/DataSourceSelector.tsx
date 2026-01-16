@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { SessionPickerList } from '@/components/replay/SessionPickerList';
+import { UnifiedSessionPicker } from '@/components/replay/UnifiedSessionPicker';
 import { CsvDropzone } from '@/components/upload/CsvDropzone';
 import { Button } from '@/components/ui/button';
 import { useReplayStore } from '@/state/useReplayStore';
@@ -100,7 +100,7 @@ export function DataSourceSelector({ onSessionsSelected, onCsvLoaded }: DataSour
         </div>
 
         {selectedSource === 'supabase' && (
-          <SessionPickerList onSessionsSelected={handleSessionsSelected} />
+          <UnifiedSessionPicker onSessionsSelected={handleSessionsSelected} />
         )}
 
         {selectedSource === 'csv' && (

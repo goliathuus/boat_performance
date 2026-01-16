@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { LoginPage } from '@/components/auth/LoginPage';
-import { SessionPickerList } from '@/components/replay/SessionPickerList';
+import { UnifiedSessionPicker } from '@/components/replay/UnifiedSessionPicker';
 import { ReplayPage } from './ReplayPage';
 import { AdminSessionsPage } from '@/components/admin/AdminSessionsPage';
 import { useReplayStore } from '@/state/useReplayStore';
+import { determineSessionEndTime } from '@/lib/session-utils';
 
 type AppPage = 'auth' | 'sessions' | 'replay' | 'admin';
 
@@ -96,31 +97,47 @@ function App() {
   };
 
   const handleBackFromAdmin = () => {
-    setPage('replay');
+    resetReplay();
+    setPage('sessions');
   };
 
   const handleReplayFromAdmin = async (sessionId: string) => {
-    // Load session metadata and add to store, then navigate to replay
+    // Reset store first
+    const store = useReplayStore.getState();
+    store.reset();
+
+    // Load session metadata
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     const { data: session } = await supabase
       .from('sessions')
-      .select('name, started_at, ended_at')
+      .select('name, started_at, ended_at, event_id, boats(display_name)')
       .eq('id', sessionId)
       .single();
 
     if (session) {
-      const store = useReplayStore.getState();
       const tMin = new Date(session.started_at).getTime();
-      // Use started_at as initial tMax instead of Date.now() - will be recalculated from points
-      const tMax = session.ended_at
-        ? new Date(session.ended_at).getTime()
-        : tMin; // Use tMin as fallback instead of Date.now()
-      store.addSession(sessionId, session.name, tMin, tMax);
+      const tMax = await determineSessionEndTime(
+        sessionId,
+        session.started_at,
+        session.ended_at,
+        session.event_id || null
+      );
+      
+      const boatDisplayName = session.boats && Array.isArray(session.boats) && session.boats.length > 0
+        ? session.boats[0].display_name
+        : session.boats?.display_name || null;
+
+      store.addSession(sessionId, session.name, tMin, tMax, boatDisplayName || undefined);
       store.setSelectedSessions([sessionId]);
       setPage('replay');
     }
+  };
+
+  const handleReplayMultipleFromAdmin = (sessionIds: string[]) => {
+    resetReplay();
+    setPage('replay');
   };
 
   const handleLogout = async () => {
@@ -143,7 +160,7 @@ function App() {
   }
 
   if (page === 'sessions') {
-    return <SessionPickerList onSessionsSelected={handleSessionsSelected} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} />;
+    return <UnifiedSessionPicker onSessionsSelected={handleSessionsSelected} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} />;
   }
 
   if (page === 'admin') {
@@ -151,6 +168,7 @@ function App() {
       <AdminSessionsPage
         onBack={handleBackFromAdmin}
         onReplay={handleReplayFromAdmin}
+        onReplayMultiple={handleReplayMultipleFromAdmin}
         onLogout={handleLogout}
       />
     );

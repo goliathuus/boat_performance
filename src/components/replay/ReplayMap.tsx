@@ -329,7 +329,7 @@ const ReplayMapContent = memo(function ReplayMapContent({ currentTime, onMapRead
         if (!session) return null;
         return {
           id: session.id,
-          name: session.name,
+          name: session.boatDisplayName || session.name,
           color: session.color,
           points: session.points,
         };
@@ -400,56 +400,91 @@ const ReplayMapContent = memo(function ReplayMapContent({ currentTime, onMapRead
       const isFocused = focusSessionId === sessionId;
 
       // Progressive track: points within [windowStartTime, currentTime] window
-      // If currentTime is null, show full track (all points)
-      // If currentTime is before session.tMin, don't show track at all
+      // Only show track if it intersects with the window
       // Optimized: use binary search to find cutoff points instead of filtering all points
       let progressiveTrackPositions: Array<[number, number]> = [];
-      let startIndex = 0;
-      let endIndex: number | 'all' = 'all';
+      
       if (session.points.length > 0) {
-        // Determine endIndex based on throttledCurrentTime
-        if (throttledCurrentTime !== null && throttledCurrentTime < session.tMin) {
-          // Don't show track if cursor is before session start
-          progressiveTrackPositions = [];
-        } else if (throttledCurrentTime === null) {
-          endIndex = session.points.length;
-        } else {
-          // Binary search to find the last point where t <= currentTime
-          // Since points are sorted by time, we can use binary search
-          let left = 0;
-          let right = session.points.length - 1;
-          endIndex = session.points.length;
-          
-          while (left <= right) {
-            const mid = Math.floor((left + right) / 2);
-            if (session.points[mid].t <= throttledCurrentTime) {
-              // This point is valid, check if there are more after
-              endIndex = mid + 1;
-              left = mid + 1;
-            } else {
-              // This point is after currentTime, search left
-              right = mid - 1;
-            }
+        // Check if session intersects with the window
+        const hasWindow = windowStartTime !== null && throttledCurrentTime !== null;
+        let shouldShowTrack = true;
+        
+        if (hasWindow) {
+          // If both windowStartTime and currentTime are defined, check if session intersects
+          if (session.tMax < windowStartTime || session.tMin > throttledCurrentTime) {
+            // Session is completely outside the window, don't show it
+            shouldShowTrack = false;
           }
         }
-
-        // Determine startIndex based on windowStartTime
-        if (windowStartTime !== null && windowStartTime > session.tMin) {
-          startIndex = binarySearchStart(session.points, windowStartTime);
-        }
-
-        // Slice points within the [windowStartTime, currentTime] range
-        if (progressiveTrackPositions.length === 0) {
-          if (endIndex === 'all') {
-            // Show full track when currentTime is not set yet
-            progressiveTrackPositions = session.points
-              .slice(startIndex)
-              .map((p) => [p.lat, p.lon] as [number, number]);
+        
+        if (shouldShowTrack) {
+          let startIndex = 0;
+          let endIndex: number | 'all' = 'all';
+          
+          // Determine endIndex based on throttledCurrentTime
+          if (throttledCurrentTime !== null && throttledCurrentTime < session.tMin) {
+            // Don't show track if cursor is before session start
+            shouldShowTrack = false;
+          } else if (throttledCurrentTime === null) {
+            // If currentTime is null, check if windowStartTime is after session end
+            if (windowStartTime !== null && windowStartTime > session.tMax) {
+              shouldShowTrack = false;
+            } else {
+              endIndex = session.points.length;
+            }
           } else {
-            // Slice points within the window
-            progressiveTrackPositions = session.points
-              .slice(startIndex, endIndex)
-              .map((p) => [p.lat, p.lon] as [number, number]);
+            // Binary search to find the last point where t <= currentTime
+            let left = 0;
+            let right = session.points.length - 1;
+            endIndex = session.points.length;
+            
+            while (left <= right) {
+              const mid = Math.floor((left + right) / 2);
+              if (session.points[mid].t <= throttledCurrentTime) {
+                endIndex = mid + 1;
+                left = mid + 1;
+              } else {
+                right = mid - 1;
+              }
+            }
+          }
+
+          if (shouldShowTrack) {
+            // Determine startIndex based on windowStartTime
+            if (windowStartTime !== null) {
+              if (windowStartTime > session.tMax) {
+                // windowStartTime is after session end, don't show
+                shouldShowTrack = false;
+              } else if (windowStartTime > session.tMin) {
+                startIndex = binarySearchStart(session.points, windowStartTime);
+              }
+            }
+
+            if (shouldShowTrack) {
+              // Check if there are any points in the window
+              if (endIndex !== 'all' && startIndex >= endIndex) {
+                // No points in the window
+                shouldShowTrack = false;
+              } else if (endIndex === 'all' && windowStartTime !== null && startIndex >= session.points.length) {
+                // windowStartTime is after all points
+                shouldShowTrack = false;
+              }
+            }
+
+            if (shouldShowTrack) {
+              // Slice points within the [windowStartTime, currentTime] range
+              if (endIndex === 'all') {
+                // Show from windowStartTime to end when currentTime is not set yet
+                progressiveTrackPositions = session.points
+                  .slice(startIndex)
+                  .map((p) => [p.lat, p.lon] as [number, number]);
+              } else {
+                // Slice points within the window [windowStartTime, currentTime]
+                progressiveTrackPositions = session.points
+                  .slice(startIndex, endIndex)
+                  .map((p) => [p.lat, p.lon] as [number, number]);
+              }
+            }
           }
         }
       }

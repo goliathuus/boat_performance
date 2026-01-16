@@ -109,9 +109,33 @@ export async function deleteEvent(eventId: string): Promise<void> {
 }
 
 /**
- * Get sessions for an event
+ * Get sessions for an event with statistics
  */
 export async function getEventSessions(eventId: string): Promise<AdminSession[]> {
+  // Try the new RPC with stats first
+  try {
+    const { data, error } = await supabase.rpc('admin_get_event_sessions_with_stats', {
+      p_event_id: eventId,
+    });
+
+    if (!error && data) {
+      return data.map((session: any) => ({
+        id: session.id,
+        name: session.name,
+        started_at: session.started_at,
+        ended_at: session.ended_at,
+        boat_id: session.boat_id,
+        user_id: session.user_id,
+        event_id: session.event_id,
+        telemetry_count: Number(session.telemetry_count) || 0,
+        boat_display_name: session.boat_display_name,
+      }));
+    }
+  } catch (err) {
+    console.log('RPC with stats not available, falling back to basic version');
+  }
+
+  // Fallback to old version without stats
   const { data, error } = await supabase.rpc('admin_get_event_sessions', {
     p_event_id: eventId,
   });

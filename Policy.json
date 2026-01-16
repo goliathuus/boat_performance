@@ -1,0 +1,212 @@
+[
+    {
+      "schemaname": "public",
+      "tablename": "boats",
+      "policyname": "boats_insert_owner",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "command": "INSERT",
+      "using_expression": null,
+      "with_check": "(owner_user_id = auth.uid())"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "boats",
+      "policyname": "boats_select_owner_or_admin",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "command": "SELECT",
+      "using_expression": "((owner_user_id = auth.uid()) OR (EXISTS ( SELECT 1\n   FROM events e\n  WHERE ((e.id = boats.event_id) AND (e.admin_user_id = auth.uid())))))",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "boats",
+      "policyname": "boats_update_owner_or_admin",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "command": "UPDATE",
+      "using_expression": "((owner_user_id = auth.uid()) OR (EXISTS ( SELECT 1\n   FROM events e\n  WHERE ((e.id = boats.event_id) AND (e.admin_user_id = auth.uid())))))",
+      "with_check": "((owner_user_id = auth.uid()) OR (EXISTS ( SELECT 1\n   FROM events e\n  WHERE ((e.id = boats.event_id) AND (e.admin_user_id = auth.uid())))))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "events",
+      "policyname": "Admins can create their own events",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "command": "INSERT",
+      "using_expression": null,
+      "with_check": "(is_admin() AND (admin_user_id = auth.uid()))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "events",
+      "policyname": "Admins can delete their own events",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "command": "DELETE",
+      "using_expression": "(is_admin() AND (admin_user_id = auth.uid()))",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "events",
+      "policyname": "Admins can update their own events",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "command": "UPDATE",
+      "using_expression": "(is_admin() AND (admin_user_id = auth.uid()))",
+      "with_check": "(is_admin() AND (admin_user_id = auth.uid()))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "events",
+      "policyname": "Admins can view their own events",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "command": "SELECT",
+      "using_expression": "(is_admin() AND (admin_user_id = auth.uid()))",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "events",
+      "policyname": "events_delete_admin",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "command": "DELETE",
+      "using_expression": "(admin_user_id = auth.uid())",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "events",
+      "policyname": "events_insert_self_admin",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "command": "INSERT",
+      "using_expression": null,
+      "with_check": "(admin_user_id = auth.uid())"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "events",
+      "policyname": "events_select_admin_or_member",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "command": "SELECT",
+      "using_expression": "(admin_user_id = auth.uid())",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "events",
+      "policyname": "events_update_admin",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "command": "UPDATE",
+      "using_expression": "(admin_user_id = auth.uid())",
+      "with_check": "(admin_user_id = auth.uid())"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "manual_events",
+      "policyname": "manual_events_select_event_admin",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "command": "SELECT",
+      "using_expression": "(EXISTS ( SELECT 1\n   FROM (sessions s\n     JOIN events e ON ((e.id = s.event_id)))\n  WHERE ((s.id = manual_events.session_id) AND (e.admin_user_id = auth.uid()))))",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "sessions",
+      "policyname": "Admins can delete sessions from their events",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "command": "DELETE",
+      "using_expression": "(is_admin() AND (EXISTS ( SELECT 1\n   FROM events\n  WHERE ((events.id = sessions.event_id) AND (events.admin_user_id = auth.uid())))))",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "sessions",
+      "policyname": "Admins can view sessions from their events",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "command": "SELECT",
+      "using_expression": "(is_admin() AND (EXISTS ( SELECT 1\n   FROM events\n  WHERE ((events.id = sessions.event_id) AND (events.admin_user_id = auth.uid())))))",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "sessions",
+      "policyname": "sessions_select_event_admin",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "command": "SELECT",
+      "using_expression": "((event_id IS NOT NULL) AND (EXISTS ( SELECT 1\n   FROM events e\n  WHERE ((e.id = sessions.event_id) AND (e.admin_user_id = auth.uid())))))",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "telemetry",
+      "policyname": "All users can read all telemetry",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "command": "SELECT",
+      "using_expression": "(auth.role() = 'authenticated'::text)",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "telemetry",
+      "policyname": "Users can insert telemetry for active sessions",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "command": "INSERT",
+      "using_expression": null,
+      "with_check": "((user_id = auth.uid()) AND (EXISTS ( SELECT 1\n   FROM sessions s\n  WHERE ((s.id = telemetry.session_id) AND (s.user_id = auth.uid())))))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "telemetry",
+      "policyname": "participants_can_insert_telemetry",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "command": "INSERT",
+      "using_expression": null,
+      "with_check": "((user_id = auth.uid()) AND (EXISTS ( SELECT 1\n   FROM sessions s\n  WHERE ((s.id = telemetry.session_id) AND (s.user_id = auth.uid())))))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "telemetry",
+      "policyname": "telemetry_insert_own_active_session",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "command": "INSERT",
+      "using_expression": null,
+      "with_check": "((user_id = auth.uid()) AND (EXISTS ( SELECT 1\n   FROM sessions s\n  WHERE ((s.id = telemetry.session_id) AND (s.user_id = auth.uid())))))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "telemetry",
+      "policyname": "telemetry_select_event_admin",
+      "permissive": "PERMISSIVE",
+      "roles": "{authenticated}",
+      "command": "SELECT",
+      "using_expression": "(EXISTS ( SELECT 1\n   FROM (sessions s\n     JOIN events e ON ((e.id = s.event_id)))\n  WHERE ((s.id = telemetry.session_id) AND (e.admin_user_id = auth.uid()))))",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "telemetry",
+      "policyname": "telemetry_select_own",
+      "permissive": "PERMISSIVE",
+      "roles": "{public}",
+      "command": "SELECT",
+      "using_expression": "(user_id = auth.uid())",
+      "with_check": null
+    }
+  ]

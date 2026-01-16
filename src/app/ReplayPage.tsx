@@ -6,8 +6,7 @@ import { BoatListPanel } from '@/components/replay/BoatListPanel';
 import { ReplayControls } from '@/components/replay/ReplayControls';
 import { CsvImportButton } from '@/components/replay/CsvImportButton';
 import { ToolsPanel } from '@/components/replay/ToolsPanel';
-import { useEventTelemetry } from '@/hooks/useEventTelemetry';
-import { useSessionTelemetry } from '@/hooks/useSessionTelemetry';
+import { useTelemetry } from '@/hooks/useTelemetry';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { exportSessionsToCSV } from '@/lib/csv-export';
@@ -20,8 +19,6 @@ interface ReplayPageProps {
 
 export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
-  const selectedEventId = useReplayStore((state) => state.selectedEventId);
-  const selectedSessionId = useReplayStore((state) => state.selectedSessionId);
   const sessions = useReplayStore((state) => state.sessions);
   const globalTMin = useReplayStore((state) => state.globalTMin);
   const globalTMax = useReplayStore((state) => state.globalTMax);
@@ -41,9 +38,8 @@ export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
     centerOnBoatRef.current = centerOnBoat;
   }, []);
 
-  // Load telemetry based on mode: event or individual session
-  const { loading: eventLoading } = useEventTelemetry(selectedEventId);
-  const { loading: sessionLoading } = useSessionTelemetry(selectedSessionId);
+  // Load telemetry using unified hook
+  const { loading } = useTelemetry();
 
   // Initialize replay clock (only when times are available)
   // Note: globalTMax should never be null here due to spinner check above
@@ -57,7 +53,7 @@ export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
 
   // Initialize clock time and windowStartTime only once when data is first loaded
   useEffect(() => {
-    if (eventLoading || sessionLoading) {
+    if (loading) {
       // Reset initialization flag when loading starts
       clockInitializedRef.current = false;
       return;
@@ -67,7 +63,7 @@ export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
       setWindowStartTime(globalTMin, globalTMax);
       clockInitializedRef.current = true;
     }
-  }, [globalTMin, globalTMax, clock, eventLoading, sessionLoading, setWindowStartTime]);
+  }, [globalTMin, globalTMax, clock, loading, setWindowStartTime]);
 
   // Sync store playing/speed to clock (one-way: store -> clock)
   const playingRef = useRef(playing);
@@ -118,13 +114,10 @@ export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
     );
   }
 
-  // Check if we're still loading telemetry
-  const isLoading = eventLoading || sessionLoading;
-
   // Show loading spinner if:
   // 1. We're actively loading telemetry, OR
   // 2. Global time range is not set yet (which means sessions aren't ready)
-  if (isLoading || globalTMin === null || globalTMax === null) {
+  if (loading || globalTMin === null || globalTMax === null) {
     return (
       <div className="w-screen h-screen flex items-center justify-center bg-background">
         <LoadingSpinner size="lg" text="Chargement des données de télémétrie..." />

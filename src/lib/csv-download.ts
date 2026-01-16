@@ -41,3 +41,5 @@ export function generateCSVFilename(sessionName?: string, isMultiSession = false
   return `boat_tracker_export_${timestamp}.csv`;
 }
 
+
+

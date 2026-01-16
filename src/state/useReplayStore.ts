@@ -20,8 +20,6 @@ interface ReplayState {
   globalTMin: number | null;
   globalTMax: number | null;
   windowStartTime: number | null; // Début de la fenêtre d'affichage
-  selectedEventId: string | null;
-  selectedSessionId: string | null; // For individual session replay mode
   focusSessionId: string | null;
 
   setSelectedSessions: (sessionIds: string[]) => void;
@@ -33,8 +31,6 @@ interface ReplayState {
   setPlaying: (playing: boolean) => void;
   setSpeed: (speed: number) => void;
   setWindowStartTime: (time: number, currentTime?: number) => void;
-  setSelectedEvent: (eventId: string | null) => void;
-  setSelectedSession: (sessionId: string | null) => void;
   setFocusSession: (sessionId: string | null) => void;
   reset: () => void;
 }
@@ -47,8 +43,6 @@ export const useReplayStore = create<ReplayState>((set, get) => ({
   globalTMin: null,
   globalTMax: null,
   windowStartTime: null,
-  selectedEventId: null,
-  selectedSessionId: null,
   focusSessionId: null,
 
   setSelectedSessions: (sessionIds) => {
@@ -201,7 +195,7 @@ export const useReplayStore = create<ReplayState>((set, get) => ({
       sessions.set(sessionId, { ...session, tMin: newTMin, tMax: newTMax });
       set({ sessions });
       // Note: globalTMin/globalTMax are NOT updated here to avoid multiple updates during batch processing
-      // They will be recalculated by useEventTelemetry/useSessionTelemetry after all updateSessionTimeRange calls
+      // They will be recalculated by useTelemetry after all updateSessionTimeRange calls
     }
   },
 
@@ -223,16 +217,6 @@ export const useReplayStore = create<ReplayState>((set, get) => ({
     set({ windowStartTime: clampedTime });
   },
 
-  setSelectedEvent: (eventId) => {
-    // When selecting an event, clear selectedSessionId (only one mode at a time)
-    set({ selectedEventId: eventId, selectedSessionId: null });
-  },
-
-  setSelectedSession: (sessionId) => {
-    // When selecting a session, clear selectedEventId (only one mode at a time)
-    set({ selectedSessionId: sessionId, selectedEventId: null });
-  },
-
   setFocusSession: (sessionId) => {
     set({ focusSessionId: sessionId });
   },
@@ -246,8 +230,6 @@ export const useReplayStore = create<ReplayState>((set, get) => ({
       globalTMin: null,
       globalTMax: null,
       windowStartTime: null,
-      selectedEventId: null,
-      selectedSessionId: null,
       focusSessionId: null,
     });
   },

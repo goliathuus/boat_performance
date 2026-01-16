@@ -10,10 +10,11 @@ import type { EventWithStats } from '@/domain/types';
 interface AdminSessionsPageProps {
   onBack: () => void;
   onReplay: (sessionId: string) => void;
+  onReplayMultiple?: (sessionIds: string[]) => void;
   onLogout?: () => void;
 }
 
-export function AdminSessionsPage({ onBack, onReplay, onLogout }: AdminSessionsPageProps) {
+export function AdminSessionsPage({ onBack, onReplay, onReplayMultiple, onLogout }: AdminSessionsPageProps) {
   const [events, setEvents] = useState<EventWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -161,6 +162,7 @@ export function AdminSessionsPage({ onBack, onReplay, onLogout }: AdminSessionsP
             setSelectedEvent(null);
           }}
           onReplay={onReplay}
+          onReplayMultiple={onReplayMultiple}
         />
       )}
 

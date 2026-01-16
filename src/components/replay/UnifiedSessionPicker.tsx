@@ -10,7 +10,6 @@ import { exportEventToCSV, exportSessionToCSV, exportSessionFromSupabase } from 
 import { downloadCSV, generateCSVFilename } from '@/lib/csv-download';
 import { determineSessionEndTime } from '@/lib/session-utils';
 import { CsvLoadModal } from './CsvLoadModal';
-import type { EventSession } from '@/hooks/useEventSessions';
 
 type TabType = 'events' | 'sessions';
 

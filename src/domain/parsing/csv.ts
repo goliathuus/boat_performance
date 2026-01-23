@@ -1,27 +1,38 @@
 import Papa from 'papaparse';
 import type { TrackPoint, BoatTrack, RaceDataset } from '../types';
 import { generateBoatColor } from '@/lib/color';
+import { recomputeSOGAndCOG, dedupeConsecutivePositions } from '../tracks';
 
 type RawCSVRow = Record<string, string>;
 
 /**
  * Normalize timestamp to epoch milliseconds
- * Accepts ISO 8601 strings or epoch ms (as string or number)
+ * Accepts ISO 8601 strings or epoch (seconds or milliseconds, as string or number)
+ * Always returns milliseconds
  */
 function normalizeTimestamp(value: string | number): number | null {
   if (typeof value === 'number') {
-    return value;
+    // If the number is < 1e12, it's probably in seconds (epoch < 2001)
+    // If the number is >= 1e12, it's probably in milliseconds
+    if (value > 0 && value < 1e12) {
+      return value * 1000; // Convert seconds to milliseconds
+    }
+    return value; // Already in milliseconds
   }
   if (typeof value === 'string') {
     // Try ISO 8601 first
     const isoDate = new Date(value);
     if (!isNaN(isoDate.getTime())) {
-      return isoDate.getTime();
+      return isoDate.getTime(); // Returns milliseconds
     }
-    // Try epoch ms
+    // Try epoch (can be seconds or milliseconds)
     const epoch = Number.parseFloat(value);
     if (!isNaN(epoch) && epoch > 0) {
-      return epoch;
+      // If < 1e12, it's probably in seconds
+      if (epoch < 1e12) {
+        return epoch * 1000; // Convert to milliseconds
+      }
+      return epoch; // Already in milliseconds
     }
   }
   return null;
@@ -60,27 +71,17 @@ function parseRow(row: RawCSVRow): TrackPoint | null {
     return null;
   }
 
+  // Create TrackPoint (SOG and COG will be recomputed later from GPS trajectory)
   const point: TrackPoint = {
     t,
     lat,
     lon,
   };
 
-  // Optional fields - support both 'sog' and 'speed' (optimized format uses 'speed')
-  const sog = getValue('sog') || getValue('speed');
-  const cog = getValue('cog');
+  // Optional fields - wind data only (SOG/COG are recomputed from GPS)
   const twd = getValue('twd');
   const awa = getValue('awa');
   const twa = getValue('twa');
-
-  if (sog) {
-    const sogNum = Number.parseFloat(sog);
-    if (!isNaN(sogNum)) point.sog = sogNum;
-  }
-  if (cog) {
-    const cogNum = Number.parseFloat(cog);
-    if (!isNaN(cogNum)) point.cog = cogNum;
-  }
 
   // Normalize wind direction fields (0-360 or -180 to 180)
   if (twd) {
@@ -125,9 +126,6 @@ function parseRow(row: RawCSVRow): TrackPoint | null {
         'lon',
         'boat_id',
         'boat_name',
-        'sog',
-        'speed',
-        'cog',
         'twd',
         'awa',
         'twa',
@@ -189,11 +187,18 @@ export async function parseCSV(csvContent: string): Promise<RaceDataset> {
         let tMin = Infinity;
         let tMax = -Infinity;
 
-        for (const [boatId, { name, points }] of boatMap.entries()) {
-          if (points.length === 0) continue;
+        for (const [boatId, { name, points: originalPoints }] of boatMap.entries()) {
+          if (originalPoints.length === 0) continue;
 
           // Sort points by timestamp
-          points.sort((a, b) => a.t - b.t);
+          originalPoints.sort((a, b) => a.t - b.t);
+
+          // Remove consecutive points with identical GPS positions
+          const points = dedupeConsecutivePositions(originalPoints);
+
+          // Recompute SOG and COG for all points based on GPS trajectory
+          // This overwrites any existing SOG/COG values from the CSV
+          recomputeSOGAndCOG(points);
 
           // Update time range
           const boatMin = points[0].t;

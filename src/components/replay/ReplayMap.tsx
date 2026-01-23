@@ -3,7 +3,21 @@ import { MapContainer, TileLayer, Polyline, Marker, Tooltip, Popup, useMap, useM
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useReplayStore } from '@/state/useReplayStore';
-import { findClosestPoint } from '@/lib/interpolate';
+import type { TrackPoint } from '@/domain/types';
+// Helper to find the last point at or before currentTime
+function findLastPoint(points: TrackPoint[], currentTime: number): TrackPoint | null {
+  if (points.length === 0) return null;
+  
+  // Find the last point where t <= currentTime
+  for (let i = points.length - 1; i >= 0; i--) {
+    if (points[i].t <= currentTime) {
+      return points[i];
+    }
+  }
+  
+  // If no point found, return null (currentTime is before all points)
+  return null;
+}
 import { computeBounds } from '@/domain/tracks';
 import { formatTime } from '@/lib/time';
 
@@ -140,10 +154,10 @@ function MapController({ onMapReady }: MapControllerProps) {
     const session = sessions.get(sessionId);
     if (!session || session.points.length === 0) return;
     
-    const closestPoint = findClosestPoint(session.points, time);
-    if (closestPoint) {
+    const lastPoint = findLastPoint(session.points, time);
+    if (lastPoint) {
       const currentZoom = map.getZoom();
-      map.setView([closestPoint.lat, closestPoint.lon], currentZoom, {
+      map.setView([lastPoint.lat, lastPoint.lon], currentZoom, {
         animate: true,
         duration: 0.5,
       });
@@ -494,11 +508,11 @@ const ReplayMapContent = memo(function ReplayMapContent({ currentTime, onMapRead
       let markerSpeed: number | null = null;
       let markerCog: number | null = null;
       if (throttledCurrentTime !== null && throttledCurrentTime >= session.tMin && throttledCurrentTime <= session.tMax) {
-        const closestPoint = findClosestPoint(session.points, throttledCurrentTime);
-        if (closestPoint) {
-          markerPosition = [closestPoint.lat, closestPoint.lon];
-          markerSpeed = closestPoint.sog ?? null;
-          markerCog = closestPoint.cog ?? null;
+        const lastPoint = findLastPoint(session.points, throttledCurrentTime);
+        if (lastPoint) {
+          markerPosition = [lastPoint.lat, lastPoint.lon];
+          markerSpeed = lastPoint.sog ?? null;
+          markerCog = lastPoint.cog ?? null;
         }
       }
 

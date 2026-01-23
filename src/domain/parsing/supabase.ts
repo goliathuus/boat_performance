@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import type { RaceDataset, BoatTrack, TrackPoint } from '../types';
 import { generateBoatColor } from '@/lib/color';
-import { calculateDistance } from '../tracks';
+import { recomputeSOGAndCOG, dedupeConsecutivePositions } from '../tracks';
 
 interface TelemetryRow {
   ts: string; // timestamptz
@@ -44,24 +44,12 @@ export async function loadSessionData(sessionId: string, userId: string): Promis
     // Convert timestamptz to epoch milliseconds
     const t = new Date(row.ts).getTime();
 
-    // Create TrackPoint
+    // Create TrackPoint (SOG and COG will be recomputed later from GPS trajectory)
     const point: TrackPoint = {
       t,
       lat: row.lat,
       lon: row.lon,
     };
-
-    // Add speed (prefer meta.sog, fallback to speed column)
-    const sog = (meta.sog as number) ?? row.speed;
-    if (sog !== null && sog !== undefined) {
-      point.sog = sog;
-    }
-
-    // Add course (prefer meta.cog, fallback to heading column)
-    const cog = (meta.cog as number) ?? row.heading;
-    if (cog !== null && cog !== undefined) {
-      point.cog = cog;
-    }
 
     // Add wind data from meta
     if (meta.twd !== null && meta.twd !== undefined) {
@@ -105,40 +93,18 @@ export async function loadSessionData(sessionId: string, userId: string): Promis
   let tMin = Infinity;
   let tMax = -Infinity;
 
-  for (const [boatId, { name, points }] of boatMap.entries()) {
-    if (points.length === 0) continue;
+  for (const [boatId, { name, points: originalPoints }] of boatMap.entries()) {
+    if (originalPoints.length === 0) continue;
 
     // Sort points by time
-    points.sort((a, b) => a.t - b.t);
+    originalPoints.sort((a, b) => a.t - b.t);
 
-    // Calculate SOG for points where it's missing
-    for (let i = 1; i < points.length; i++) {
-      const currentPoint = points[i];
-      const previousPoint = points[i - 1];
+    // Remove consecutive points with identical GPS positions
+    const points = dedupeConsecutivePositions(originalPoints);
 
-      // If SOG is not available, calculate it from lat/lon
-      if (currentPoint.sog === undefined || currentPoint.sog === null) {
-        const timeDiff = (currentPoint.t - previousPoint.t) / 1000; // in seconds
-
-        // Only calculate if time elapsed is reasonable (between 0.1s and 60s)
-        if (timeDiff > 0.1 && timeDiff < 60) {
-          const distance = calculateDistance(
-            previousPoint.lat,
-            previousPoint.lon,
-            currentPoint.lat,
-            currentPoint.lon
-          );
-
-          // Convert m/s to knots (1 m/s = 1.944 knots)
-          const sogKnots = (distance / timeDiff) * 1.944;
-
-          // Limit to reasonable values (0-50 knots)
-          if (sogKnots >= 0 && sogKnots <= 50) {
-            currentPoint.sog = sogKnots;
-          }
-        }
-      }
-    }
+    // Recompute SOG and COG for all points based on GPS trajectory
+    // This overwrites any existing SOG/COG values from the database
+    recomputeSOGAndCOG(points);
 
     // Update time range
     const boatTMin = points[0].t;

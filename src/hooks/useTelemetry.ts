@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useReplayStore } from '@/state/useReplayStore';
 import { getTelemetryAll } from '@/lib/supabase-rpc';
 import { determineSessionEndTime } from '@/lib/session-utils';
+import { recomputeSOGAndCOG, dedupeConsecutivePositions } from '@/domain/tracks';
 import type { TrackPoint } from '@/domain/types';
 
 interface UseTelemetryResult {
@@ -252,11 +253,22 @@ export function useTelemetry(): UseTelemetryResult {
         if (successful.length > 0) {
           console.log('[useTelemetry] Updating store with', successful.length, 'sessions');
           
-          // Sort points by time before updating
-          const sortedSuccessful = successful.map(({ sessionId, points }) => ({
-            sessionId,
-            points: [...points].sort((a, b) => a.t - b.t),
-          }));
+          // Sort points by time and recompute SOG/COG before updating
+          const sortedSuccessful = successful.map(({ sessionId, points }) => {
+            const sortedPoints = [...points].sort((a, b) => a.t - b.t);
+            
+            // Remove consecutive points with identical GPS positions
+            const dedupedPoints = dedupeConsecutivePositions(sortedPoints);
+            
+            // Recompute SOG and COG for all points based on GPS trajectory
+            // This overwrites any existing SOG/COG values from the database
+            recomputeSOGAndCOG(dedupedPoints);
+            
+            return {
+              sessionId,
+              points: dedupedPoints,
+            };
+          });
 
           updateMultipleSessionPoints(sortedSuccessful);
 

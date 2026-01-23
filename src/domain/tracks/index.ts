@@ -278,6 +278,131 @@ export function calculateDestPoint(
 }
 
 /**
+ * Calculate bearing (course over ground) between two points
+ * @param lat1 Latitude of first point in degrees
+ * @param lon1 Longitude of first point in degrees
+ * @param lat2 Latitude of second point in degrees
+ * @param lon2 Longitude of second point in degrees
+ * @returns Bearing in degrees (0-360, 0 = North, clockwise)
+ */
+export function calculateBearing(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const lat1Rad = (lat1 * Math.PI) / 180;
+  const lat2Rad = (lat2 * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+
+  const y = Math.sin(dLon) * Math.cos(lat2Rad);
+  const x =
+    Math.cos(lat1Rad) * Math.sin(lat2Rad) -
+    Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
+
+  let bearing = Math.atan2(y, x);
+  bearing = (bearing * 180) / Math.PI;
+  bearing = (bearing + 360) % 360; // Normalize to 0-360
+
+  return bearing;
+}
+
+/**
+ * Remove consecutive points that are too close together (less than 3 meters apart)
+ * Keeps the first point of each sequence of close points
+ * @param points Array of TrackPoints (must be sorted by time)
+ * @returns New array with points closer than 3m removed
+ */
+export function dedupeConsecutivePositions(points: TrackPoint[]): TrackPoint[] {
+  if (points.length === 0) return [];
+  
+  const deduped: TrackPoint[] = [points[0]]; // Always keep first point
+  const MIN_DISTANCE_METERS = 3; // Minimum distance between consecutive points
+  
+  for (let i = 1; i < points.length; i++) {
+    const current = points[i];
+    const previous = deduped[deduped.length - 1]; // Compare with last kept point
+    
+    // Calculate distance between current point and last kept point
+    const distance = calculateDistance(
+      previous.lat,
+      previous.lon,
+      current.lat,
+      current.lon
+    );
+    
+    // Keep point if distance is >= 3 meters
+    if (distance >= MIN_DISTANCE_METERS) {
+      deduped.push(current);
+    }
+    // Otherwise, skip this point (it's too close to the previous one)
+  }
+  
+  return deduped;
+}
+
+/**
+ * Recompute SOG and COG for all points based on GPS trajectory
+ * Mutates the points array in place
+ * @param points Array of TrackPoints (will be sorted by time if not already)
+ */
+export function recomputeSOGAndCOG(points: TrackPoint[]): void {
+  if (points.length === 0) return;
+
+  // Sort points by time to ensure correct order
+  points.sort((a, b) => a.t - b.t);
+
+  // First point has no previous point, so no SOG/COG
+  for (let i = 1; i < points.length; i++) {
+    const currentPoint = points[i];
+    const previousPoint = points[i - 1];
+
+    const timeDiff = (currentPoint.t - previousPoint.t) / 1000; // in seconds
+
+    // Only calculate if time elapsed is reasonable (between 0.1s and 300s)
+    // Increased limit to 300s to tolerate gaps after deduplication
+    if (timeDiff > 0.1 && timeDiff < 300) {
+      // Calculate distance
+      const distance = calculateDistance(
+        previousPoint.lat,
+        previousPoint.lon,
+        currentPoint.lat,
+        currentPoint.lon
+      );
+
+      // Calculate SOG: distance (m) / time (s) * conversion to knots (1 m/s = 1.944 knots)
+      const sogKnots = (distance / timeDiff) * 1.944;
+
+      // Limit to reasonable values (0-100 knots)
+      if (sogKnots >= 0 && sogKnots <= 100) {
+        currentPoint.sog = sogKnots;
+      } else {
+        currentPoint.sog = undefined;
+      }
+
+      // Calculate COG: bearing from previous point to current point
+      const cog = calculateBearing(
+        previousPoint.lat,
+        previousPoint.lon,
+        currentPoint.lat,
+        currentPoint.lon
+      );
+      currentPoint.cog = cog;
+    } else {
+      // Invalid time difference, clear SOG/COG
+      currentPoint.sog = undefined;
+      currentPoint.cog = undefined;
+    }
+  }
+
+  // First point has no SOG/COG (no previous point)
+  if (points.length > 0) {
+    points[0].sog = undefined;
+    points[0].cog = undefined;
+  }
+}
+
+/**
  * Calculate rolling average SOG over a time window
  * @param boat Boat track
  * @param currentTime Current timestamp in ms
@@ -314,4 +439,89 @@ export function calculateAverageSOG(
     boat.points.length,
     boat.points.length
   );
+}
+
+/**
+ * Calculate time-weighted average SOG and COG over a time window
+ * Each segment between points is weighted by its duration within the window
+ * @param points Array of TrackPoints (must be sorted by time)
+ * @param windowStart Start of time window in ms
+ * @param windowEnd End of time window in ms
+ * @returns Object with avgSOG and avgCOG, or null if no data
+ */
+export function calculateAverageSOGAndCOG(
+  points: TrackPoint[],
+  windowStart: number,
+  windowEnd: number
+): { avgSOG: number; avgCOG: number } | null {
+  if (points.length === 0) return null;
+
+  let totalWeightedSOG = 0;
+  let totalWeightedCOGSin = 0;
+  let totalWeightedCOGCos = 0;
+  let totalDuration = 0;
+
+  // Find the first point at or before windowStart
+  let startIdx = 0;
+  for (let i = 0; i < points.length; i++) {
+    if (points[i].t >= windowStart) {
+      startIdx = Math.max(0, i - 1); // Include point before if exists
+      break;
+    }
+    if (i === points.length - 1) {
+      startIdx = i;
+    }
+  }
+
+  // Process segments within the window
+  for (let i = startIdx; i < points.length - 1; i++) {
+    const p1 = points[i];
+    const p2 = points[i + 1];
+
+    // Skip if both points are before windowStart
+    if (p2.t < windowStart) continue;
+    // Stop if p1 is after windowEnd
+    if (p1.t > windowEnd) break;
+
+    // Calculate segment boundaries (clamped to window)
+    const segmentStart = Math.max(p1.t, windowStart);
+    const segmentEnd = Math.min(p2.t, windowEnd);
+
+    // Skip if segment has no duration
+    if (segmentEnd <= segmentStart) continue;
+
+    // Duration of this segment in seconds
+    const segmentDuration = (segmentEnd - segmentStart) / 1000;
+
+    // Use SOG and COG from the end point (p2) of the segment
+    // (or p1 if p2 doesn't have SOG/COG)
+    const sog = p2.sog !== undefined ? p2.sog : p1.sog;
+    const cog = p2.cog !== undefined ? p2.cog : p1.cog;
+
+    if (sog !== undefined && cog !== undefined) {
+      // Weighted SOG: SOG * duration
+      totalWeightedSOG += sog * segmentDuration;
+
+      // Weighted COG (circular mean): sin/cos weighted by duration
+      const cogRad = (cog * Math.PI) / 180;
+      totalWeightedCOGSin += Math.sin(cogRad) * segmentDuration;
+      totalWeightedCOGCos += Math.cos(cogRad) * segmentDuration;
+
+      totalDuration += segmentDuration;
+    }
+  }
+
+  if (totalDuration === 0) {
+    return null;
+  }
+
+  // Time-weighted average SOG
+  const avgSOG = totalWeightedSOG / totalDuration;
+
+  // Time-weighted average COG (circular mean)
+  const avgCOGRad = Math.atan2(totalWeightedCOGSin, totalWeightedCOGCos);
+  let avgCOG = (avgCOGRad * 180) / Math.PI;
+  if (avgCOG < 0) avgCOG += 360;
+
+  return { avgSOG, avgCOG };
 }

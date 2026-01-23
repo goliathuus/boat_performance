@@ -138,8 +138,8 @@ export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
           activeTool={activeTool}
         />
 
-        {/* Boat List Panel - overlay top right */}
-        <div className="absolute top-4 right-4 z-[1000]">
+        {/* Boat List Panel - overlay top right to bottom (above time controller) */}
+        <div className="absolute top-4 right-4 bottom-4 z-[1000]">
           <BoatListPanel 
             currentTime={clock.currentTime}
             onCenterBoat={(sessionId) => {

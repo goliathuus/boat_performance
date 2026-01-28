@@ -82,7 +82,6 @@ export function useTelemetryStream(
           }
           const result = await getTelemetryKeyset(
             sessionId,
-            userIdRef.current,
             startTs,
             endTs,
             undefined,

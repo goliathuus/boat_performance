@@ -1,4 +1,4 @@
-import type { Gate, Crossing, Result, BoatTrack, TrackPoint } from '@/types';
+import type { Gate, Crossing, Result, BoatTrack } from '@/types';
 import { calculateDistance } from '@/domain/tracks';
 
 /**

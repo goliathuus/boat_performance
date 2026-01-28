@@ -383,13 +383,13 @@ const ReplayMapContent = memo(function ReplayMapContent({
   currentTime, 
   onMapReady, 
   activeTool, 
-  isGateRankingOpen = false,
+  isGateRankingOpen: _isGateRankingOpen = false,
   gateStart,
   gateFinish,
   gateDrawMode,
   gateStartPartial,
   gateFinishPartial,
-  rankings,
+  rankings: _rankings,
   crossingsByBoat,
   selectedBoatId,
   onSetGateStart,
@@ -399,7 +399,7 @@ const ReplayMapContent = memo(function ReplayMapContent({
   onSetGateFinishPartial,
   onSetRankings,
   onSetCrossingsByBoat,
-  onSetSelectedBoatId,
+  onSetSelectedBoatId: _onSetSelectedBoatId,
 }: ReplayMapContentProps) {
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
   const focusSessionId = useReplayStore((state) => state.focusSessionId);
@@ -891,6 +891,22 @@ interface ReplayMapProps {
   onMapReady?: (centerOnBoat: (sessionId: string, currentTime: number) => void) => void;
   activeTool?: string | null;
   isGateRankingOpen?: boolean;
+  gateStart: Gate | null;
+  gateFinish: Gate | null;
+  gateDrawMode: 'none' | 'drawStart' | 'drawFinish';
+  gateStartPartial: { lat: number; lon: number } | null;
+  gateFinishPartial: { lat: number; lon: number } | null;
+  rankings: Result[];
+  crossingsByBoat: Map<string, { start?: Crossing; finish?: Crossing }>;
+  selectedBoatId: string | null;
+  onSetGateStart: (gate: Gate | null) => void;
+  onSetGateFinish: (gate: Gate | null) => void;
+  onSetGateDrawMode: (mode: 'none' | 'drawStart' | 'drawFinish') => void;
+  onSetGateStartPartial: (point: { lat: number; lon: number } | null) => void;
+  onSetGateFinishPartial: (point: { lat: number; lon: number } | null) => void;
+  onSetRankings: (rankings: Result[]) => void;
+  onSetCrossingsByBoat: (crossings: Map<string, { start?: Crossing; finish?: Crossing }>) => void;
+  onSetSelectedBoatId: (boatId: string | null) => void;
 }
 
 export function ReplayMap({ 

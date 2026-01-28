@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import type { Gate, Result, Crossing } from '@/types';
 import { formatTime } from '@/lib/time';
 
@@ -25,10 +24,10 @@ export function GateRankingWidget({
   gateStart,
   gateFinish,
   gateDrawMode,
-  gateStartPartial,
-  gateFinishPartial,
+  gateStartPartial: _gateStartPartial,
+  gateFinishPartial: _gateFinishPartial,
   rankings,
-  crossingsByBoat,
+  crossingsByBoat: _crossingsByBoat,
   selectedBoatId,
   onSetGateStart,
   onSetGateFinish,

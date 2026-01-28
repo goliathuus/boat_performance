@@ -37,7 +37,6 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
   const windowStartTime = useReplayStore((state) => state.windowStartTime);
   const [isExporting, setIsExporting] = useState(false);
   const [localSortMode, setLocalSortMode] = useState<SortMode>(propSortMode ?? 'speed');
-  const [isVisible, setIsVisible] = useState(true);
   
   // Sync local state with prop if prop changes
   useEffect(() => {
@@ -147,28 +146,16 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
   };
 
   return (
-    <div className="relative h-full">
-      {/* Conteneur avec overflow pour l'animation - permet au bouton de dépasser à gauche */}
-      <div className="relative h-full" style={{ overflowX: 'visible', marginLeft: '32px' }}>
-        {/* Tableau avec animation de glissement */}
-        <div
-          className={`bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg p-4 transition-transform duration-300 ease-in-out h-full flex flex-col relative`}
-          style={{
-            width: '400px',
-            transform: isVisible ? 'translateX(0)' : 'translateX(100%)',
-          }}
-        >
-          {/* Bouton qui glisse avec le tableau */}
-          <button
-            onClick={() => setIsVisible(!isVisible)}
-            className="absolute left-0 top-0 h-12 w-8 bg-background/95 backdrop-blur-sm border border-r-0 rounded-l-lg shadow-lg z-10 flex items-center justify-center hover:bg-accent/30 transition-colors"
-            title={isVisible ? "Cacher le tableau" : "Afficher le tableau"}
-            style={{ left: '-32px' }}
-          >
-            <span className="text-sm">{isVisible ? '◀' : '▶'}</span>
-          </button>
+    <div className="h-full">
+      {/* Tableau */}
+      <div
+        className="bg-background/95 backdrop-blur-sm border-l rounded-tl-lg p-4 h-full flex flex-col"
+        style={{
+          width: '400px',
+        }}
+      >
           <div className="flex items-center justify-between mb-4 flex-shrink-0">
-            <h2 className="text-lg font-semibold">Boats</h2>
+            <h2 className="text-lg font-semibold">Time Ranking</h2>
             <div className="flex items-center gap-2">
               <div className="text-xs text-muted-foreground">
                 {sortedBoats.length} boat{sortedBoats.length !== 1 ? 's' : ''}
@@ -318,7 +305,6 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
         )}
           </div>
         </div>
-      </div>
     </div>
   );
 }

@@ -4,6 +4,7 @@ interface Tool {
   name: string;
   icon: React.ReactNode;
   description: string;
+  isWidget?: boolean; // true for widgets (open/close), false for tools (active/inactive)
 }
 
 // Simple ruler icon SVG
@@ -25,38 +26,110 @@ const RulerIcon = () => (
   </svg>
 );
 
+// Boat list icon SVG
+const BoatListIcon = () => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M4 6h16M4 12h16M4 18h16" />
+  </svg>
+);
+
+// Gate ranking icon SVG
+const GateRankingIcon = () => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M3 3v18h18" />
+    <path d="M7 12l4-4 4 4 6-6" />
+    <path d="M21 12v6" />
+  </svg>
+);
+
 const tools: Tool[] = [
   {
     id: 'ruler',
     name: 'Règle',
     icon: <RulerIcon />,
     description: 'Mesurer une distance',
+    isWidget: false,
   },
-  // Future tools can be added here
+  {
+    id: 'boatList',
+    name: 'Time Ranking',
+    icon: <BoatListIcon />,
+    description: 'Classement selon le temps',
+    isWidget: true,
+  },
+  {
+    id: 'gateRanking',
+    name: 'Gate Ranking',
+    icon: <GateRankingIcon />,
+    description: 'Classement selon les gates',
+    isWidget: true,
+  },
 ];
 
 interface ToolsPanelProps {
   activeTool: string | null;
   onToolChange: (toolId: string | null) => void;
+  openWidgets: Set<string>;
+  onToggleWidget: (widgetId: string) => void;
 }
 
-export function ToolsPanel({ activeTool, onToolChange }: ToolsPanelProps) {
+export function ToolsPanel({ activeTool, onToolChange, openWidgets, onToggleWidget }: ToolsPanelProps) {
   return (
     <div className="absolute left-0 top-0 bottom-0 w-12 bg-background/95 backdrop-blur-sm border-r flex flex-col items-center py-2 gap-2 z-[1000]">
-      {tools.map((tool) => (
-        <button
-          key={tool.id}
-          onClick={() => onToolChange(activeTool === tool.id ? null : tool.id)}
-          className={`p-2 rounded hover:bg-accent transition-colors ${
-            activeTool === tool.id
-              ? 'bg-primary text-primary-foreground'
-              : 'text-foreground'
-          }`}
-          title={tool.description}
-        >
-          {tool.icon}
-        </button>
-      ))}
+      {tools.map((tool) => {
+        if (tool.isWidget) {
+          // Widget: toggle open/close
+          const isOpen = openWidgets.has(tool.id);
+          return (
+            <button
+              key={tool.id}
+              onClick={() => onToggleWidget(tool.id)}
+              className={`p-2 rounded hover:bg-accent transition-colors ${
+                isOpen
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-foreground'
+              }`}
+              title={tool.description}
+            >
+              {tool.icon}
+            </button>
+          );
+        } else {
+          // Tool: toggle active/inactive
+          return (
+            <button
+              key={tool.id}
+              onClick={() => onToolChange(activeTool === tool.id ? null : tool.id)}
+              className={`p-2 rounded hover:bg-accent transition-colors ${
+                activeTool === tool.id
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-foreground'
+              }`}
+              title={tool.description}
+            >
+              {tool.icon}
+            </button>
+          );
+        }
+      })}
     </div>
   );
 }

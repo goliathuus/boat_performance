@@ -17,6 +17,7 @@ export function CsvLoadModal({ isOpen, onClose, onLoadComplete }: CsvLoadModalPr
   const addSessions = useReplayStore((state) => state.addSessions);
   const setSelectedSessions = useReplayStore((state) => state.setSelectedSessions);
   const updateMultipleSessionPoints = useReplayStore((state) => state.updateMultipleSessionPoints);
+  const updateSessionTimeRange = useReplayStore((state) => state.updateSessionTimeRange);
 
   const handleFileSelect = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,7 +67,12 @@ export function CsvLoadModal({ isOpen, onClose, onLoadComplete }: CsvLoadModalPr
         // Update points
         updateMultipleSessionPoints(pointsUpdates);
 
-        // Select all imported sessions
+        // Recompute per-session time ranges based on actual points
+        pointsUpdates.forEach(({ sessionId }) => {
+          updateSessionTimeRange(sessionId);
+        });
+
+        // Select all imported sessions (recomputes global time range)
         const sessionIds = sessionUpdates.map((s) => s.sessionId);
         setSelectedSessions(sessionIds);
 
@@ -85,7 +91,7 @@ export function CsvLoadModal({ isOpen, onClose, onLoadComplete }: CsvLoadModalPr
         setLoading(false);
       }
     },
-    [addSessions, updateMultipleSessionPoints, setSelectedSessions, onClose, onLoadComplete]
+    [addSessions, updateMultipleSessionPoints, updateSessionTimeRange, setSelectedSessions, onClose, onLoadComplete]
   );
 
   const handleDrop = useCallback(
@@ -132,6 +138,11 @@ export function CsvLoadModal({ isOpen, onClose, onLoadComplete }: CsvLoadModalPr
           addSessions(sessionUpdates);
           updateMultipleSessionPoints(pointsUpdates);
 
+          // Recompute per-session time ranges based on actual points
+          pointsUpdates.forEach(({ sessionId }) => {
+            updateSessionTimeRange(sessionId);
+          });
+
           const sessionIds = sessionUpdates.map((s) => s.sessionId);
           setSelectedSessions(sessionIds);
 
@@ -145,7 +156,7 @@ export function CsvLoadModal({ isOpen, onClose, onLoadComplete }: CsvLoadModalPr
         }
       }
     },
-    [addSessions, updateMultipleSessionPoints, setSelectedSessions, onClose, onLoadComplete]
+    [addSessions, updateMultipleSessionPoints, updateSessionTimeRange, setSelectedSessions, onClose, onLoadComplete]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {

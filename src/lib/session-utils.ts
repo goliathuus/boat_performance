@@ -2,9 +2,10 @@ import { supabase } from './supabase';
 
 /**
  * Determine the end time (tMax) for a session based on business logic:
- * 1. If session has ended_at, use it
- * 2. If session has event_id and event has ended_at, use event.ended_at
- * 3. Otherwise, query the last telemetry point
+ * 1. If session has ended_at, consider it
+ * 2. If session has event_id and event has ended_at, consider it
+ * 3. Always check the last telemetry point
+ * 4. Use the maximum available end time (never earlier than tMin)
  */
 export async function determineSessionEndTime(
   sessionId: string,
@@ -13,13 +14,12 @@ export async function determineSessionEndTime(
   eventId: string | null
 ): Promise<number> {
   const tMin = new Date(startedAt).getTime();
-  
-  // 1. If session has ended_at, use it
-  if (endedAt) {
-    return new Date(endedAt).getTime();
-  }
-  
-  // 2. If session has event_id, try to get event.ended_at
+
+  let sessionEnd: number | null = endedAt ? new Date(endedAt).getTime() : null;
+  let eventEnd: number | null = null;
+  let telemetryEnd: number | null = null;
+
+  // 1. If session has event_id, try to get event.ended_at
   if (eventId) {
     const { data: event } = await supabase
       .from('events')
@@ -28,12 +28,11 @@ export async function determineSessionEndTime(
       .single();
     
     if (event?.ended_at) {
-      console.log('[determineSessionEndTime] Using event ended_at for session', sessionId, event.ended_at);
-      return new Date(event.ended_at).getTime();
+      eventEnd = new Date(event.ended_at).getTime();
     }
   }
   
-  // 3. Query the last telemetry point
+  // 2. Query the last telemetry point
   const { data: lastPoint } = await supabase
     .from('telemetry')
     .select('ts')
@@ -43,11 +42,16 @@ export async function determineSessionEndTime(
     .single();
   
   if (lastPoint?.ts) {
-    console.log('[determineSessionEndTime] Using last telemetry point for session', sessionId, lastPoint.ts);
-    return new Date(lastPoint.ts).getTime();
+    telemetryEnd = new Date(lastPoint.ts).getTime();
   }
   
-  // Fallback to tMin if no telemetry found
-  return tMin;
+  const tMax = Math.max(
+    tMin,
+    sessionEnd ?? tMin,
+    eventEnd ?? tMin,
+    telemetryEnd ?? tMin
+  );
+
+  return tMax;
 }
 

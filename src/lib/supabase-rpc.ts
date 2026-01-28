@@ -163,7 +163,6 @@ export async function getTelemetryWindow(
  */
 export async function getTelemetryKeyset(
   sessionId: string,
-  userId: string,
   startTs: Date,
   endTs: Date,
   lastTs?: Date,
@@ -173,7 +172,6 @@ export async function getTelemetryKeyset(
     .from('telemetry')
     .select('ts, lat, lon, speed, heading, meta')
     .eq('session_id', sessionId)
-    .eq('user_id', userId)
     .gte('ts', startTs.toISOString())
     .lte('ts', endTs.toISOString())
     .order('ts', { ascending: true })
@@ -221,29 +219,51 @@ export async function getTelemetryKeyset(
 }
 
 /**
- * Get all telemetry data for a session (with automatic downsampling if needed)
- * Uses getTelemetryWindow with a reasonable maxPoints to avoid 400 errors
- * Falls back to bucketed data if window fails
+ * Get all telemetry data for a session without downsampling
+ * Uses keyset pagination to fetch the full dataset
  */
 export async function getTelemetryAll(
   sessionId: string,
   startTs: Date,
-  endTs: Date
+  endTs: Date,
+  pageSize: number = 10000
 ): Promise<TrackPoint[]> {
-  // Try with a smaller maxPoints first (20000) to avoid 400 errors
-  // If that fails, try with bucketed data as fallback
-  try {
-    return await getTelemetryWindow(sessionId, startTs, endTs, 20000);
-  } catch (error) {
-    console.warn('[getTelemetryAll] getTelemetryWindow failed, trying with smaller maxPoints', error);
-    try {
-      // Try with even smaller maxPoints
-      return await getTelemetryWindow(sessionId, startTs, endTs, 10000);
-    } catch (error2) {
-      console.warn('[getTelemetryAll] getTelemetryWindow with 10000 failed, falling back to bucketed data', error2);
-      // Fallback to bucketed data (downsampled)
-      return await getTelemetryBucketed(sessionId, startTs, endTs, 10);
+  const allPoints: TrackPoint[] = [];
+  let lastTs: Date | undefined;
+  let hasMore = true;
+  let page = 0;
+
+  while (hasMore) {
+    const { points, hasMore: more, lastTimestamp } = await getTelemetryKeyset(
+      sessionId,
+      startTs,
+      endTs,
+      lastTs,
+      pageSize
+    );
+
+    if (points.length === 0) {
+      break;
+    }
+
+    allPoints.push(...points);
+    hasMore = more;
+    lastTs = lastTimestamp ?? undefined;
+    page += 1;
+
+    if (!lastTs) {
+      break;
+    }
+
+    if (page % 10 === 0) {
+      console.log('[getTelemetryAll] Loaded pages', {
+        sessionId,
+        pages: page,
+        points: allPoints.length,
+      });
     }
   }
+
+  return allPoints;
 }
 

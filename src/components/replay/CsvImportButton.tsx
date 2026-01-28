@@ -15,6 +15,7 @@ export function CsvImportButton({ className }: CsvImportButtonProps) {
   const addSessions = useReplayStore((state) => state.addSessions);
   const setSelectedSessions = useReplayStore((state) => state.setSelectedSessions);
   const updateMultipleSessionPoints = useReplayStore((state) => state.updateMultipleSessionPoints);
+  const updateSessionTimeRange = useReplayStore((state) => state.updateSessionTimeRange);
 
   const handleFileSelect = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -64,7 +65,12 @@ export function CsvImportButton({ className }: CsvImportButtonProps) {
         // Update points
         updateMultipleSessionPoints(pointsUpdates);
 
-        // Select all imported sessions
+        // Recompute per-session time ranges based on actual points
+        pointsUpdates.forEach(({ sessionId }) => {
+          updateSessionTimeRange(sessionId);
+        });
+
+        // Select all imported sessions (recomputes global time range)
         const sessionIds = sessionUpdates.map((s) => s.sessionId);
         setSelectedSessions(sessionIds);
 
@@ -79,7 +85,7 @@ export function CsvImportButton({ className }: CsvImportButtonProps) {
         setLoading(false);
       }
     },
-    [addSessions, updateMultipleSessionPoints, setSelectedSessions]
+    [addSessions, updateMultipleSessionPoints, updateSessionTimeRange, setSelectedSessions]
   );
 
   const openFileDialog = useCallback(() => {

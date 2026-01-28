@@ -204,7 +204,11 @@ export function useTelemetry(): UseTelemetryResult {
               ? new Date(session.tMax)
               : new Date(session.tMin + 3600000); // Fallback: 1 hour if still no end time
 
-            const points = await getTelemetryAll(sessionId, sessionStartsAt, sessionEndsAt);
+            const points = await getTelemetryAll(
+              sessionId,
+              sessionStartsAt,
+              sessionEndsAt
+            );
 
             console.log('[useTelemetry] Telemetry loaded for session', sessionId, {
               pointsCount: points.length,

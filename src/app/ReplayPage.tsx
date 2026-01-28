@@ -3,7 +3,10 @@ import { useReplayStore } from '@/state/useReplayStore';
 import { useReplayClock } from '@/hooks/useReplayClock';
 import { ReplayMapWithData } from '@/components/replay/ReplayMap';
 import { BoatListPanel } from '@/components/replay/BoatListPanel';
+import { BoatListWidget } from '@/components/replay/BoatListWidget';
+import { GateRankingWidget } from '@/components/replay/GateRankingWidget';
 import { ReplayControls } from '@/components/replay/ReplayControls';
+import type { Gate, Result, Crossing } from '@/types';
 import { CsvImportButton } from '@/components/replay/CsvImportButton';
 import { ToolsPanel } from '@/components/replay/ToolsPanel';
 import { useTelemetry } from '@/hooks/useTelemetry';
@@ -27,6 +30,17 @@ export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
   const setWindowStartTime = useReplayStore((state) => state.setWindowStartTime);
   const [isExporting, setIsExporting] = useState(false);
   const [activeTool, setActiveTool] = useState<string | null>(null);
+  const [openWidgets, setOpenWidgets] = useState<Set<string>>(new Set());
+  
+  // Gate Ranking state
+  const [gateStart, setGateStart] = useState<Gate | null>(null);
+  const [gateFinish, setGateFinish] = useState<Gate | null>(null);
+  const [gateDrawMode, setGateDrawMode] = useState<'none' | 'drawStart' | 'drawFinish'>('none');
+  const [gateStartPartial, setGateStartPartial] = useState<{ lat: number; lon: number } | null>(null);
+  const [gateFinishPartial, setGateFinishPartial] = useState<{ lat: number; lon: number } | null>(null);
+  const [selectedBoatId, setSelectedBoatId] = useState<string | null>(null);
+  const [rankings, setRankings] = useState<Result[]>([]);
+  const [crossingsByBoat, setCrossingsByBoat] = useState<Map<string, { start?: Crossing; finish?: Crossing }>>(new Map());
   
   // Track if clock has been initialized to avoid resetting user's cursor position
   const clockInitializedRef = useRef(false);
@@ -130,25 +144,105 @@ export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
       {/* Map */}
       <div className="flex-1 relative">
         {/* Tools Panel - left side */}
-        <ToolsPanel activeTool={activeTool} onToolChange={setActiveTool} />
+        <ToolsPanel 
+          activeTool={activeTool} 
+          onToolChange={setActiveTool}
+          openWidgets={openWidgets}
+          onToggleWidget={(widgetId) => {
+            setOpenWidgets((prev) => {
+              const next = new Set(prev);
+              // If opening boatList or gateRanking, close the other one (mutually exclusive)
+              if (widgetId === 'boatList' || widgetId === 'gateRanking') {
+                next.delete('boatList');
+                next.delete('gateRanking');
+                // If the clicked widget was already open, don't add it (toggle off)
+                // Otherwise, add it (toggle on)
+                if (!prev.has(widgetId)) {
+                  next.add(widgetId);
+                }
+              } else {
+                // For other widgets, normal toggle behavior
+                if (next.has(widgetId)) {
+                  next.delete(widgetId);
+                } else {
+                  next.add(widgetId);
+                }
+              }
+              return next;
+            });
+          }}
+        />
         
         <ReplayMapWithData 
           currentTime={clock.currentTime} 
           onMapReady={handleMapReady}
           activeTool={activeTool}
+          isGateRankingOpen={openWidgets.has('gateRanking')}
+          gateStart={gateStart}
+          gateFinish={gateFinish}
+          gateDrawMode={gateDrawMode}
+          gateStartPartial={gateStartPartial}
+          gateFinishPartial={gateFinishPartial}
+          rankings={rankings}
+          crossingsByBoat={crossingsByBoat}
+          selectedBoatId={selectedBoatId}
+          onSetGateStart={setGateStart}
+          onSetGateFinish={setGateFinish}
+          onSetGateDrawMode={setGateDrawMode}
+          onSetGateStartPartial={setGateStartPartial}
+          onSetGateFinishPartial={setGateFinishPartial}
+          onSetRankings={setRankings}
+          onSetCrossingsByBoat={setCrossingsByBoat}
+          onSetSelectedBoatId={setSelectedBoatId}
+        />
+
+        {/* Boat List Widget - always visible, compact format */}
+        <BoatListWidget 
+          currentTime={clock.currentTime}
+          onCenterBoat={(sessionId) => {
+            if (centerOnBoatRef.current) {
+              centerOnBoatRef.current(sessionId, clock.currentTime);
+            }
+          }}
         />
 
         {/* Boat List Panel - overlay top right to bottom (above time controller) */}
-        <div className="absolute top-4 right-4 bottom-4 z-[1000]">
-          <BoatListPanel 
-            currentTime={clock.currentTime}
-            onCenterBoat={(sessionId) => {
-              if (centerOnBoatRef.current) {
-                centerOnBoatRef.current(sessionId, clock.currentTime);
-              }
-            }}
-          />
-        </div>
+        {openWidgets.has('boatList') && (
+          <div className="absolute top-0 right-0 z-[1000]" style={{ height: 'calc(100vh - 140px)', bottom: '140px' }}>
+            <BoatListPanel 
+              currentTime={clock.currentTime}
+              onCenterBoat={(sessionId) => {
+                if (centerOnBoatRef.current) {
+                  centerOnBoatRef.current(sessionId, clock.currentTime);
+                }
+              }}
+            />
+          </div>
+        )}
+
+        {/* Gate Ranking Widget - overlay top right to bottom (above time controller) */}
+        {openWidgets.has('gateRanking') && (
+          <div className="absolute top-0 right-0 z-[1000]" style={{ height: 'calc(100vh - 140px)', bottom: '140px' }}>
+            <GateRankingWidget
+              gateStart={gateStart}
+              gateFinish={gateFinish}
+              gateDrawMode={gateDrawMode}
+              gateStartPartial={gateStartPartial}
+              gateFinishPartial={gateFinishPartial}
+              rankings={rankings}
+              crossingsByBoat={crossingsByBoat}
+              selectedBoatId={selectedBoatId}
+              onSetGateStart={setGateStart}
+              onSetGateFinish={setGateFinish}
+              onSetGateDrawMode={setGateDrawMode}
+              onSetGateStartPartial={setGateStartPartial}
+              onSetGateFinishPartial={setGateFinishPartial}
+              onSetRankings={setRankings}
+              onSetCrossingsByBoat={setCrossingsByBoat}
+              onSetSelectedBoatId={setSelectedBoatId}
+            />
+          </div>
+        )}
 
         {/* Top toolbar */}
         <div className="absolute top-4 left-16 z-[1000] flex gap-2">

@@ -28,7 +28,15 @@ export function ReplayControls({ currentTime, setCurrentTime }: ReplayControlsPr
   const currentProgress = ((currentTime - globalTMin) / (globalTMax - globalTMin)) * 100;
 
   return (
-    <div className="bg-background/95 backdrop-blur-sm border-t p-4">
+    <div className="bg-background/95 backdrop-blur-sm border-t p-4 relative">
+      {/* Logo en bas à gauche */}
+      <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
+        <img 
+          src="/sh.png" 
+          alt="Sh course au large" 
+          className="h-20 w-auto opacity-80"
+        />
+      </div>
       <div className="max-w-6xl mx-auto space-y-4">
         {/* Time display and play/pause */}
         <div className="flex items-center gap-4">

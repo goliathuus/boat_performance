@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getEventSessions, deleteSession } from '@/lib/supabase-admin';
+import { determineSessionEndTime } from '@/lib/session-utils';
 import { useReplayStore } from '@/state/useReplayStore';
 import { Button } from '@/components/ui/button';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
@@ -97,14 +98,17 @@ export function EventDetailModal({
                 <Button
                   variant="default"
                   size="sm"
-                  onClick={() => {
+                  onClick={async () => {
                     const sessionIds = sessions.map((s) => s.id);
                     // Add sessions to store
-                    const sessionsToAdd = sessions.map((session) => {
+                    const sessionsToAdd = await Promise.all(sessions.map(async (session) => {
                       const tMin = new Date(session.started_at).getTime();
-                      const tMax = session.ended_at
-                        ? new Date(session.ended_at).getTime()
-                        : tMin;
+                      const tMax = await determineSessionEndTime(
+                        session.id,
+                        session.started_at,
+                        session.ended_at,
+                        session.event_id
+                      );
                       return {
                         sessionId: session.id,
                         name: session.name,
@@ -112,7 +116,7 @@ export function EventDetailModal({
                         tMax,
                         boatDisplayName: session.boat_display_name || undefined,
                       };
-                    });
+                    }));
                     addSessions(sessionsToAdd);
                     setSelectedSessions(sessionIds);
                     onReplayMultiple(sessionIds);

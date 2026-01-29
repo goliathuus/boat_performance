@@ -70,11 +70,10 @@ export function useEvents(): UseEventsResult {
         console.log('RPC admin_get_events not available, using direct query');
       }
 
-      // Fallback: Direct query
+      // Fallback: Direct query (no filter - RLS policies will handle access control)
       const { data: directData, error: directError } = await supabase
         .from('events')
         .select('id, title, code, starts_at, ends_at, admin_user_id, created_at')
-        .eq('admin_user_id', user.id)
         .order('starts_at', { ascending: false });
 
       if (directError) {

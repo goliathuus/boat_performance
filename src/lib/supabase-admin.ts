@@ -173,7 +173,8 @@ export async function deleteSession(sessionId: string): Promise<void> {
 }
 
 /**
- * Check if the current user is an admin (based on role in app_metadata)
+ * Check if the current user is an admin (admin or super_admin)
+ * Now reads from the users table instead of app_metadata
  */
 export async function isUserAdmin(): Promise<boolean> {
   try {
@@ -182,12 +183,80 @@ export async function isUserAdmin(): Promise<boolean> {
       return false;
     }
 
-    // Check role in app_metadata (set by Supabase admin, not modifiable by user)
-    const role = user.app_metadata?.role;
-    return role === 'admin';
+    // Query the users table instead of app_metadata
+    const { data, error } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (error || !data) {
+      console.error('Error checking admin status:', error);
+      return false;
+    }
+
+    // Admin includes both 'admin' and 'super_admin'
+    return data.role === 'admin' || data.role === 'super_admin';
   } catch (error) {
     console.error('Error in isUserAdmin:', error);
     return false;
+  }
+}
+
+/**
+ * Check if the current user is a super admin
+ */
+export async function isUserSuperAdmin(): Promise<boolean> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return false;
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (error || !data) {
+      console.error('Error checking super admin status:', error);
+      return false;
+    }
+
+    return data.role === 'super_admin';
+  } catch (error) {
+    console.error('Error in isUserSuperAdmin:', error);
+    return false;
+  }
+}
+
+/**
+ * Get user role from the users table
+ */
+export async function getUserRole(userId?: string): Promise<'admin' | 'user' | 'super_admin' | null> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    const targetUserId = userId || user?.id;
+    
+    if (!targetUserId) {
+      return null;
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', targetUserId)
+      .single();
+
+    if (error || !data) {
+      return null;
+    }
+
+    return data.role as 'admin' | 'user' | 'super_admin';
+  } catch (error) {
+    console.error('Error getting user role:', error);
+    return null;
   }
 }
 

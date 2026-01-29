@@ -64,3 +64,14 @@ export type AdminSession = {
   telemetry_count?: number;
   boat_display_name?: string | null;
 };
+
+export type UserRole = 'admin' | 'user' | 'super_admin';
+
+export type User = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  role: UserRole;
+  created_at: string;
+  updated_at: string;
+};

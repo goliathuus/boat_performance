@@ -206,6 +206,8 @@ function GateRankingCalculator({ gateStart, gateFinish, boats, onRankingsCompute
         lat: p.lat,
         lon: p.lon,
         t: p.t,
+        sog: p.sog,
+        cog: p.cog,
       })),
     }));
 
@@ -674,20 +676,35 @@ const ReplayMapContent = memo(function ReplayMapContent({
     return null;
   }, [rulerStart, rulerEnd]);
 
-  // Prepare boats for ranking calculation
+  // Prepare boats for ranking calculation - filter points by time window
   const boatsForRanking = useMemo(() => {
     return sessionsToDisplay
       .map((sessionId) => {
         const session = sessions.get(sessionId);
         if (!session || session.points.length === 0) return null;
+        
+        // Filter points to only include those between windowStartTime and currentTime
+        let filteredPoints = session.points;
+        if (windowStartTime !== null && throttledCurrentTime !== null) {
+          filteredPoints = session.points.filter(
+            (p) => p.t >= windowStartTime && p.t <= throttledCurrentTime
+          );
+        } else if (windowStartTime !== null) {
+          filteredPoints = session.points.filter((p) => p.t >= windowStartTime);
+        } else if (throttledCurrentTime !== null) {
+          filteredPoints = session.points.filter((p) => p.t <= throttledCurrentTime);
+        }
+        
+        if (filteredPoints.length === 0) return null;
+        
         return {
           id: session.id,
           name: session.name,
-          points: session.points,
+          points: filteredPoints,
         };
       })
       .filter((b): b is NonNullable<typeof b> => b !== null);
-  }, [sessionsToDisplay, sessions]);
+  }, [sessionsToDisplay, sessions, windowStartTime, throttledCurrentTime]);
 
   const handleRankingsComputed = useCallback((results: Result[], crossings: Map<string, { start?: Crossing; finish?: Crossing }>) => {
     onSetRankings(results);

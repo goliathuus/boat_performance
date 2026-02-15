@@ -127,6 +127,7 @@ export function GateRankingWidget({
                   <th className="text-left p-2 font-semibold text-xs">Bateau</th>
                   <th className="text-right p-2 font-semibold text-xs">Temps</th>
                   <th className="text-right p-2 font-semibold text-xs">Vit. moy</th>
+                  <th className="text-right p-2 font-semibold text-xs">COG moy</th>
                   <th className="text-right p-2 font-semibold text-xs">Distance</th>
                   <th className="text-right p-2 font-semibold text-xs">tStart</th>
                   <th className="text-right p-2 font-semibold text-xs">tFinish</th>
@@ -162,6 +163,9 @@ export function GateRankingWidget({
                       </td>
                       <td className="p-2 text-right font-mono text-xs">
                         {result.avgSpeed.toFixed(1)} kn
+                      </td>
+                      <td className="p-2 text-right font-mono text-xs">
+                        {result.avgCOG !== undefined ? `${result.avgCOG.toFixed(0)}°` : '—'}
                       </td>
                       <td className="p-2 text-right font-mono text-xs">
                         {result.distanceNm.toFixed(2)} NM

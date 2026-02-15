@@ -1,5 +1,5 @@
 import type { Gate, Crossing, Result, BoatTrack } from '@/types';
-import { calculateDistance } from '@/domain/tracks';
+import { calculateDistance, calculateAverageSOGAndCOG } from '@/domain/tracks';
 
 /**
  * 2D vector type for pixel-space calculations
@@ -295,6 +295,13 @@ export function computeGateRankings(
       const elapsedHours = elapsedMs / (1000 * 3600);
       const avgSpeed = elapsedHours > 0 ? distanceNm / elapsedHours : 0;
       
+      // Calculate average COG between start and finish using the same method as BoatListPanel
+      const avgCOGResult = calculateAverageSOGAndCOG(
+        boat.points,
+        firstStart.t,
+        firstFinish.t
+      );
+      
       results.push({
         boatId: boat.id,
         name: boat.name,
@@ -303,6 +310,7 @@ export function computeGateRankings(
         elapsedMs,
         avgSpeed,
         distanceNm,
+        avgCOG: avgCOGResult?.avgCOG,
       });
     }
   }

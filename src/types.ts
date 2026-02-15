@@ -36,5 +36,6 @@ export type Result = {
   elapsedMs: number;
   avgSpeed: number; // Average speed in knots
   distanceNm: number; // Distance traveled in nautical miles
+  avgCOG?: number; // Average Course Over Ground in degrees (0-360)
 };
 

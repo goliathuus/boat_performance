@@ -66,16 +66,21 @@ const RangeSlider = React.forwardRef<HTMLDivElement, RangeSliderProps>(
       }
     }, [draggingThumb, handleMouseMove, handleMouseUp]);
 
+    const setRefs = React.useCallback(
+      (node: HTMLDivElement | null) => {
+        (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+        if (typeof ref === 'function') {
+          ref(node);
+        } else if (ref) {
+          (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
+        }
+      },
+      [ref]
+    );
+
     return (
       <div
-        ref={(node) => {
-          containerRef.current = node;
-          if (typeof ref === 'function') {
-            ref(node);
-          } else if (ref) {
-            (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
-          }
-        }}
+        ref={setRefs}
         className={cn('relative w-full h-2', className)}
         {...props}
       >

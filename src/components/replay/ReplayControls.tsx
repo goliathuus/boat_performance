@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { useReplayStore } from '@/state/useReplayStore';
 import { Button } from '@/components/ui/button';
 import { RangeSlider } from '@/components/ui/rangeSlider';
+import { Select } from '@/components/ui/select';
 import { formatTime } from '@/lib/time';
 
 interface ReplayControlsProps {
@@ -18,7 +20,16 @@ export function ReplayControls({ currentTime, setCurrentTime }: ReplayControlsPr
   const setSpeed = useReplayStore((state) => state.setSpeed);
   const setWindowStartTime = useReplayStore((state) => state.setWindowStartTime);
 
-  const speedOptions = [0.5, 1, 2, 4, 8];
+  const speedOptions = [1, 5, 10, 25, 50, 100, 250, 500];
+  
+  // Normaliser la vitesse si elle n'est pas dans la liste
+  useEffect(() => {
+    if (!speedOptions.includes(speed)) {
+      setSpeed(1);
+    }
+  }, [speed, setSpeed]);
+  
+  const currentSpeed = speedOptions.includes(speed) ? speed : 1;
 
   if (globalTMin === null || globalTMax === null || windowStartTime === null) {
     return null;
@@ -85,19 +96,17 @@ export function ReplayControls({ currentTime, setCurrentTime }: ReplayControlsPr
         {/* Speed controls */}
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Speed:</span>
-          <div className="flex gap-1">
+          <Select
+            value={currentSpeed.toString()}
+            onChange={(e) => setSpeed(Number.parseFloat(e.target.value))}
+            className="w-32"
+          >
             {speedOptions.map((s) => (
-              <Button
-                key={s}
-                onClick={() => setSpeed(s)}
-                variant={speed === s ? 'default' : 'outline'}
-                size="sm"
-                className="min-w-[50px]"
-              >
+              <option key={s} value={s.toString()}>
                 {s}x
-              </Button>
+              </option>
             ))}
-          </div>
+          </Select>
         </div>
       </div>
     </div>

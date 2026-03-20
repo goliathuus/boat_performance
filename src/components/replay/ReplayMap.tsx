@@ -404,6 +404,7 @@ const ReplayMapContent = memo(function ReplayMapContent({
   onSetSelectedBoatId: _onSetSelectedBoatId,
 }: ReplayMapContentProps) {
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
+  const hiddenSessionIds = useReplayStore((state) => state.hiddenSessionIds);
   const focusSessionId = useReplayStore((state) => state.focusSessionId);
   const setFocusSession = useReplayStore((state) => state.setFocusSession);
   const sessions = useReplayStore((state) => state.sessions);
@@ -457,11 +458,11 @@ const ReplayMapContent = memo(function ReplayMapContent({
   }, [activeTool]);
 
 
-  // Display all selected sessions, even if they don't have points loaded yet
-  // This allows sessions to appear immediately while telemetry is loading
+  // Display only non-hidden sessions (even if they don't have points loaded yet).
+  // This allows sessions to appear immediately while telemetry is loading.
   const sessionsToDisplay = useMemo(() => {
-    return selectedSessionIds;
-  }, [selectedSessionIds]);
+    return selectedSessionIds.filter((id) => !hiddenSessionIds.has(id));
+  }, [selectedSessionIds, hiddenSessionIds]);
 
   // Calculate bounds for auto-fit
   const bounds = useMemo(() => {

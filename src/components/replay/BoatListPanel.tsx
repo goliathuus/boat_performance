@@ -32,6 +32,7 @@ interface BoatListPanelProps {
 export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoat }: BoatListPanelProps) {
   const sessions = useReplayStore((state) => state.sessions);
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
+  const hiddenSessionIds = useReplayStore((state) => state.hiddenSessionIds);
   const focusSessionId = useReplayStore((state) => state.focusSessionId);
   const setFocusSession = useReplayStore((state) => state.setFocusSession);
   const windowStartTime = useReplayStore((state) => state.windowStartTime);
@@ -51,6 +52,7 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
   // Calculate current speed and averages for each session
   const boatsWithSpeed = useMemo(() => {
     return selectedSessionIds
+      .filter((id) => !hiddenSessionIds.has(id))
       .map((sessionId) => {
         const session = sessions.get(sessionId);
         if (!session) return null;
@@ -101,7 +103,7 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
         };
       })
       .filter((b): b is NonNullable<typeof b> => b !== null);
-  }, [selectedSessionIds, sessions, currentTime, windowStartTime]);
+  }, [selectedSessionIds, hiddenSessionIds, sessions, currentTime, windowStartTime]);
 
   // Sort boats
   const sortedBoats = useMemo(() => {

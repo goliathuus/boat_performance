@@ -1,3 +1,4 @@
+import { useReplayStore } from '@/state/useReplayStore';
 import type { Gate, Result, Crossing } from '@/types';
 import { formatTime } from '@/lib/time';
 
@@ -38,6 +39,8 @@ export function GateRankingWidget({
   onSetCrossingsByBoat,
   onSetSelectedBoatId,
 }: GateRankingWidgetProps) {
+  const sessions = useReplayStore((state) => state.sessions);
+
   const handleReset = () => {
     onSetGateStart(null);
     onSetGateFinish(null);
@@ -137,6 +140,7 @@ export function GateRankingWidget({
               <tbody>
                 {rankings.map((result, index) => {
                   const isSelected = selectedBoatId === result.boatId;
+                  const boatColor = sessions.get(result.boatId)?.color ?? 'transparent';
                   const leaderTime = rankings[0]?.elapsedMs ?? 0;
                   const gap = result.elapsedMs - leaderTime;
                   const minutes = Math.floor(result.elapsedMs / 60000);
@@ -157,7 +161,20 @@ export function GateRankingWidget({
                       }`}
                     >
                       <td className="p-2 font-mono">{index + 1}</td>
-                      <td className="p-2 font-medium">{result.name}</td>
+                      <td className="p-2">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full flex-shrink-0 border border-border"
+                            style={{ backgroundColor: boatColor }}
+                          />
+                          <span
+                            className="font-medium truncate"
+                            style={{ color: boatColor }}
+                          >
+                            {result.name}
+                          </span>
+                        </div>
+                      </td>
                       <td className="p-2 text-right font-mono">
                         {minutes}:{seconds.toString().padStart(2, '0')}
                       </td>

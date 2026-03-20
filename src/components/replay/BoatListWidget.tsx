@@ -27,6 +27,9 @@ export function BoatListWidget({ currentTime, onCenterBoat }: BoatListWidgetProp
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
   const focusSessionId = useReplayStore((state) => state.focusSessionId);
   const setFocusSession = useReplayStore((state) => state.setFocusSession);
+  const hiddenSessionIds = useReplayStore((state) => state.hiddenSessionIds);
+  const setHiddenSession = useReplayStore((state) => state.setHiddenSession);
+  const toggleHiddenSession = useReplayStore((state) => state.toggleHiddenSession);
 
   // Calculate current speed for each session
   const boatsWithSpeed = useMemo(() => {
@@ -75,23 +78,32 @@ export function BoatListWidget({ currentTime, onCenterBoat }: BoatListWidgetProp
           boatsWithSpeed.map((boat) => {
             const hasData = boat.active && boat.speed !== null;
             const isFocused = focusSessionId === boat.sessionId;
+            const isHidden = hiddenSessionIds.has(boat.sessionId);
             return (
               <div
                 key={boat.sessionId}
                 onClick={() => {
                   // Toggle: si déjà focusé, dé-focuser, sinon focuser
-                  setFocusSession(isFocused ? null : boat.sessionId);
+                  if (isFocused) {
+                    setFocusSession(null);
+                    return;
+                  }
+                  if (isHidden) {
+                    setHiddenSession(boat.sessionId, false);
+                  }
+                  setFocusSession(boat.sessionId);
                 }}
                 onDoubleClick={(e) => {
                   e.stopPropagation();
-                  // Center map on boat position at current time
-                  if (onCenterBoat) {
-                    onCenterBoat(boat.sessionId);
+                  // Center map on boat position at current time (and unhide if needed)
+                  if (isHidden) {
+                    setHiddenSession(boat.sessionId, false);
                   }
+                  onCenterBoat?.(boat.sessionId);
                 }}
                 className={`flex items-center justify-between gap-2 px-2 py-1 rounded text-xs transition-colors cursor-pointer ${
                   hasData ? '' : 'opacity-50'
-                } ${
+                } ${isHidden ? 'opacity-60' : ''} ${
                   isFocused 
                     ? 'ring-2 ring-primary bg-accent/50 hover:bg-accent/70' 
                     : 'hover:bg-accent/30'
@@ -103,11 +115,26 @@ export function BoatListWidget({ currentTime, onCenterBoat }: BoatListWidgetProp
                     style={{ backgroundColor: boat.color }}
                   />
                   <span
-                    className="font-medium truncate"
-                    style={{ color: hasData ? boat.color : undefined }}
+                    className="font-medium truncate flex-1"
+                    style={{ color: boat.color }}
                   >
                     {boat.name}
                   </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleHiddenSession(boat.sessionId);
+                    }}
+                    title={isHidden ? 'Afficher la trace' : 'Masquer la trace'}
+                    className={`flex-shrink-0 text-[11px] px-1.5 py-0.5 rounded border transition-colors ${
+                      isHidden
+                        ? 'bg-muted/50 hover:bg-muted'
+                        : 'bg-background/40 border-border hover:bg-accent/30'
+                    }`}
+                  >
+                    {isHidden ? 'Show' : 'Hide'}
+                  </button>
                 </div>
                 <div className="text-right font-mono flex-shrink-0">
                   {boat.speed !== null ? (

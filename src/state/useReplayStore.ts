@@ -15,6 +15,7 @@ export interface SessionData {
 interface ReplayState {
   selectedSessionIds: string[];
   sessions: Map<string, SessionData>;
+  hiddenSessionIds: Set<string>;
   playing: boolean;
   speed: number; // 0.5, 1, 2, 4, 8
   globalTMin: number | null;
@@ -32,12 +33,15 @@ interface ReplayState {
   setSpeed: (speed: number) => void;
   setWindowStartTime: (time: number, currentTime?: number) => void;
   setFocusSession: (sessionId: string | null) => void;
+  setHiddenSession: (sessionId: string, hidden: boolean) => void;
+  toggleHiddenSession: (sessionId: string) => void;
   reset: () => void;
 }
 
 export const useReplayStore = create<ReplayState>((set, get) => ({
   selectedSessionIds: [],
   sessions: new Map(),
+  hiddenSessionIds: new Set(),
   playing: false,
   speed: 1,
   globalTMin: null,
@@ -46,7 +50,7 @@ export const useReplayStore = create<ReplayState>((set, get) => ({
   focusSessionId: null,
 
   setSelectedSessions: (sessionIds) => {
-    set({ selectedSessionIds: sessionIds });
+    const nextSelectedSet = new Set(sessionIds);
     // Update global time range
     const sessions = get().sessions;
     let tMin = Infinity;
@@ -58,9 +62,16 @@ export const useReplayStore = create<ReplayState>((set, get) => ({
         tMax = Math.max(tMax, session.tMax);
       }
     });
+
+    // Keep hidden state only for sessions still selected
+    const currentHidden = get().hiddenSessionIds;
+    const nextHidden = new Set(Array.from(currentHidden).filter((id) => nextSelectedSet.has(id)));
+
     set({
+      selectedSessionIds: sessionIds,
       globalTMin: tMin === Infinity ? null : tMin,
       globalTMax: tMax === -Infinity ? null : tMax,
+      hiddenSessionIds: nextHidden,
       // Don't initialize currentTime here - wait for points to be loaded
       // currentTime will be set in updateSessionTimeRange or in the hooks after loading
     });
@@ -221,10 +232,50 @@ export const useReplayStore = create<ReplayState>((set, get) => ({
     set({ focusSessionId: sessionId });
   },
 
+  setHiddenSession: (sessionId, hidden) => {
+    set((state) => {
+      const nextHidden = new Set(state.hiddenSessionIds);
+      if (hidden) {
+        nextHidden.add(sessionId);
+      } else {
+        nextHidden.delete(sessionId);
+      }
+
+      // If the focused session gets hidden, remove focus to keep UI consistent.
+      const nextFocusSessionId = state.focusSessionId === sessionId && hidden ? null : state.focusSessionId;
+      return {
+        hiddenSessionIds: nextHidden,
+        focusSessionId: nextFocusSessionId,
+      };
+    });
+  },
+
+  toggleHiddenSession: (sessionId) => {
+    set((state) => {
+      const nextHidden = new Set(state.hiddenSessionIds);
+      const currentlyHidden = nextHidden.has(sessionId);
+      if (currentlyHidden) {
+        nextHidden.delete(sessionId);
+      } else {
+        nextHidden.add(sessionId);
+      }
+
+      // If hiding the focused boat, remove focus.
+      const nextFocusSessionId =
+        state.focusSessionId === sessionId && !currentlyHidden ? null : state.focusSessionId;
+
+      return {
+        hiddenSessionIds: nextHidden,
+        focusSessionId: nextFocusSessionId,
+      };
+    });
+  },
+
   reset: () => {
     set({
       selectedSessionIds: [],
       sessions: new Map(),
+      hiddenSessionIds: new Set(),
       playing: false,
       speed: 1,
       globalTMin: null,

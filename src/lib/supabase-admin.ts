@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Event, EventWithStats, AdminSession } from '@/domain/types';
+import type { Event, EventWithStats, AdminSession, AdminUser } from '@/domain/types';
 
 /**
  * Get all events for the current admin user with session counts
@@ -38,6 +38,8 @@ export async function getAdminEvents(): Promise<EventWithStats[]> {
       ends_at: event.ends_at,
       admin_user_id: event.admin_user_id,
       created_at: event.created_at,
+      owner_name: event.owner_name ?? null,
+      owner_email: event.owner_email ?? null,
       status,
       session_count: Number(event.session_count) || 0,
     };
@@ -50,18 +52,29 @@ export async function getAdminEvents(): Promise<EventWithStats[]> {
 export async function createEvent(
   title: string,
   startsAt: Date,
-  endsAt: Date
+  endsAt: Date,
+  ownerAdminId?: string
 ): Promise<Event> {
   // Validate dates
   if (endsAt <= startsAt) {
     throw new Error('End date must be after start date');
   }
 
-  const { data, error } = await supabase.rpc('admin_create_event', {
-    p_title: title,
-    p_starts_at: startsAt.toISOString(),
-    p_ends_at: endsAt.toISOString(),
-  });
+  const rpcName = ownerAdminId ? 'admin_create_event_for_owner' : 'admin_create_event';
+  const rpcArgs = ownerAdminId
+    ? {
+        p_title: title,
+        p_starts_at: startsAt.toISOString(),
+        p_ends_at: endsAt.toISOString(),
+        p_owner_admin_id: ownerAdminId,
+      }
+    : {
+        p_title: title,
+        p_starts_at: startsAt.toISOString(),
+        p_ends_at: endsAt.toISOString(),
+      };
+
+  const { data, error } = await supabase.rpc(rpcName, rpcArgs);
 
   if (error) {
     throw new Error(`Failed to create event: ${error.message}`);
@@ -79,6 +92,8 @@ export async function createEvent(
     ends_at: data[0].ends_at,
     admin_user_id: data[0].admin_user_id,
     created_at: data[0].created_at,
+    owner_name: data[0].owner_name ?? null,
+    owner_email: data[0].owner_email ?? null,
   };
 }
 
@@ -258,5 +273,27 @@ export async function getUserRole(userId?: string): Promise<'admin' | 'user' | '
     console.error('Error getting user role:', error);
     return null;
   }
+}
+
+/**
+ * Get all admin users (clubs) for super admin assignment UI.
+ */
+export async function getAdminUsers(): Promise<AdminUser[]> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, email, full_name, club_name, role')
+    .in('role', ['admin'])
+    .order('full_name', { ascending: true });
+
+  if (error) {
+    throw new Error(`Failed to load admin users: ${error.message}`);
+  }
+
+  return (data ?? []).map((u: any) => ({
+    id: u.id,
+    email: u.email ?? null,
+    full_name: u.full_name ?? null,
+    club_name: u.club_name ?? null,
+  }));
 }
 

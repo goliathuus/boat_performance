@@ -44,6 +44,8 @@ export type Event = {
   ends_at: string;
   admin_user_id: string;
   created_at: string;
+  owner_name?: string | null;
+  owner_email?: string | null;
 };
 
 export type EventStatus = 'active' | 'expired' | 'upcoming';
@@ -72,6 +74,14 @@ export type User = {
   email: string | null;
   full_name: string | null;
   role: UserRole;
+  club_name?: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type AdminUser = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  club_name?: string | null;
 };

@@ -1,5 +1,7 @@
 import { useState, FormEvent } from 'react';
-import { createEvent } from '@/lib/supabase-admin';
+import { useEffect } from 'react';
+import { createEvent, getAdminUsers, getUserRole } from '@/lib/supabase-admin';
+import type { AdminUser, UserRole } from '@/domain/types';
 import { Button } from '@/components/ui/button';
 
 interface CreateEventFormProps {
@@ -14,6 +16,30 @@ export function CreateEventForm({ onSuccess, onCancel }: CreateEventFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdCode, setCreatedCode] = useState<string | null>(null);
+  const [role, setRole] = useState<UserRole | null>(null);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [ownerAdminId, setOwnerAdminId] = useState<string>('');
+
+  useEffect(() => {
+    const loadOwnershipOptions = async () => {
+      try {
+        const currentRole = await getUserRole();
+        setRole(currentRole);
+
+        if (currentRole === 'super_admin') {
+          const admins = await getAdminUsers();
+          setAdminUsers(admins);
+          if (admins.length > 0) {
+            setOwnerAdminId(admins[0].id);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load owner options:', err);
+      }
+    };
+
+    void loadOwnershipOptions();
+  }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -30,7 +56,8 @@ export function CreateEventForm({ onSuccess, onCancel }: CreateEventFormProps) {
         return;
       }
 
-      const event = await createEvent(title, startsAtDate, endsAtDate);
+      const targetOwnerAdminId = role === 'super_admin' ? ownerAdminId || undefined : undefined;
+      const event = await createEvent(title, startsAtDate, endsAtDate, targetOwnerAdminId);
       setCreatedCode(event.code);
       onSuccess(event.code);
     } catch (err) {
@@ -108,6 +135,38 @@ export function CreateEventForm({ onSuccess, onCancel }: CreateEventFormProps) {
         />
       </div>
 
+      {role === 'super_admin' ? (
+        <div>
+          <label htmlFor="owner_admin" className="block text-sm font-medium mb-2">
+            Club / Admin propriétaire *
+          </label>
+          <select
+            id="owner_admin"
+            value={ownerAdminId}
+            onChange={(e) => setOwnerAdminId(e.target.value)}
+            required
+            className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            {adminUsers.length === 0 ? (
+              <option value="">No admin available</option>
+            ) : (
+              adminUsers.map((admin) => (
+                <option key={admin.id} value={admin.id}>
+                  {admin.club_name || admin.full_name || admin.email || admin.id}
+                </option>
+              ))
+            )}
+          </select>
+          <p className="text-xs text-muted-foreground mt-1">
+            Seul ce club (et le super admin) verra cet événement.
+          </p>
+        </div>
+      ) : (
+        <div className="p-3 rounded-md bg-muted/40 border text-sm">
+          <span className="font-medium">Attribution:</span> Cet événement sera attribué à votre club.
+        </div>
+      )}
+
       <div>
         <label htmlFor="starts_at" className="block text-sm font-medium mb-2">
           Start Date & Time *
@@ -140,7 +199,11 @@ export function CreateEventForm({ onSuccess, onCancel }: CreateEventFormProps) {
         <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
           Cancel
         </Button>
-        <Button type="submit" disabled={loading} className="flex-1">
+        <Button
+          type="submit"
+          disabled={loading || (role === 'super_admin' && !ownerAdminId)}
+          className="flex-1"
+        >
           {loading ? 'Creating...' : 'Create Event'}
         </Button>
       </div>

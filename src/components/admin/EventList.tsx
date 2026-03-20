@@ -84,6 +84,12 @@ export function EventList({ events, onView, onStop, onDelete, loading }: EventLi
                 <div>
                   <span className="font-medium">Sessions:</span> {event.session_count}
                 </div>
+                {(event.owner_name || event.owner_email) && (
+                  <div>
+                    <span className="font-medium">Propriétaire:</span>{' '}
+                    {event.owner_name || event.owner_email}
+                  </div>
+                )}
               </div>
             </div>
 

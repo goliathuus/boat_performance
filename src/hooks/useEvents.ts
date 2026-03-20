@@ -56,6 +56,8 @@ export function useEvents(): UseEventsResult {
               ends_at: event.ends_at,
               admin_user_id: event.admin_user_id,
               created_at: event.created_at,
+              owner_name: event.owner_name ?? null,
+              owner_email: event.owner_email ?? null,
               status,
               session_count: event.session_count || 0,
             };

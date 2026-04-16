@@ -18,9 +18,10 @@ import { downloadCSV, generateCSVFilename } from '@/lib/csv-download';
 interface ReplayPageProps {
   onBack: () => void;
   onLogout?: () => void;
+  onOpenCsvAgg?: () => void;
 }
 
-export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
+export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) {
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
   const sessions = useReplayStore((state) => state.sessions);
   const globalTMin = useReplayStore((state) => state.globalTMin);
@@ -259,6 +260,11 @@ export function ReplayPage({ onBack, onLogout }: ReplayPageProps) {
             {isExporting ? 'Exporting...' : '📥 Export CSV'}
           </Button>
           <CsvImportButton />
+          {onOpenCsvAgg && (
+            <Button variant="outline" size="sm" onClick={onOpenCsvAgg}>
+              CSV agg
+            </Button>
+          )}
           {onLogout && (
             <Button variant="outline" size="sm" onClick={onLogout}>
               Déconnexion

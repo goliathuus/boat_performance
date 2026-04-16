@@ -17,9 +17,15 @@ interface UnifiedSessionPickerProps {
   onSessionsSelected: (sessionIds: string[]) => void;
   onLogout?: () => void;
   onOpenAdmin?: () => void;
+  onOpenCsvAgg?: () => void;
 }
 
-export function UnifiedSessionPicker({ onSessionsSelected, onLogout, onOpenAdmin }: UnifiedSessionPickerProps) {
+export function UnifiedSessionPicker({
+  onSessionsSelected,
+  onLogout,
+  onOpenAdmin,
+  onOpenCsvAgg,
+}: UnifiedSessionPickerProps) {
   const [activeTab, setActiveTab] = useState<TabType>('events');
   const [isAdmin, setIsAdmin] = useState(false);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
@@ -457,6 +463,11 @@ export function UnifiedSessionPicker({ onSessionsSelected, onLogout, onOpenAdmin
             >
               📁 Load CSV
             </Button>
+            {onOpenCsvAgg && (
+              <Button onClick={onOpenCsvAgg} variant="outline">
+                CSV agg
+              </Button>
+            )}
             {selectedSessionIds.size > 0 && (
               <span className="text-sm text-muted-foreground">
                 {selectedSessionIds.size} session{selectedSessionIds.size !== 1 ? 's' : ''} selected

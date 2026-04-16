@@ -4,13 +4,15 @@ import { LoginPage } from '@/components/auth/LoginPage';
 import { UnifiedSessionPicker } from '@/components/replay/UnifiedSessionPicker';
 import { ReplayPage } from './ReplayPage';
 import { AdminSessionsPage } from '@/components/admin/AdminSessionsPage';
+import { CsvAggregatorPage } from '@/components/replay/CsvAggregatorPage';
 import { useReplayStore } from '@/state/useReplayStore';
 import { determineSessionEndTime } from '@/lib/session-utils';
 
-type AppPage = 'auth' | 'sessions' | 'replay' | 'admin';
+type AppPage = 'auth' | 'sessions' | 'replay' | 'admin' | 'csvAgg';
 
 function App() {
   const [page, setPage] = useState<AppPage>('auth');
+  const [csvAggReturnPage, setCsvAggReturnPage] = useState<'sessions' | 'replay'>('sessions');
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
   const resetReplay = useReplayStore((state) => state.reset);
@@ -96,6 +98,20 @@ function App() {
     setPage('admin');
   };
 
+  const handleOpenCsvAggFromSessions = () => {
+    setCsvAggReturnPage('sessions');
+    setPage('csvAgg');
+  };
+
+  const handleOpenCsvAggFromReplay = () => {
+    setCsvAggReturnPage('replay');
+    setPage('csvAgg');
+  };
+
+  const handleBackFromCsvAgg = () => {
+    setPage(csvAggReturnPage);
+  };
+
   const handleBackFromAdmin = () => {
     resetReplay();
     setPage('sessions');
@@ -161,7 +177,14 @@ function App() {
   }
 
   if (page === 'sessions') {
-    return <UnifiedSessionPicker onSessionsSelected={handleSessionsSelected} onLogout={handleLogout} onOpenAdmin={handleOpenAdmin} />;
+    return (
+      <UnifiedSessionPicker
+        onSessionsSelected={handleSessionsSelected}
+        onLogout={handleLogout}
+        onOpenAdmin={handleOpenAdmin}
+        onOpenCsvAgg={handleOpenCsvAggFromSessions}
+      />
+    );
   }
 
   if (page === 'admin') {
@@ -175,8 +198,18 @@ function App() {
     );
   }
 
+  if (page === 'csvAgg') {
+    return <CsvAggregatorPage onBack={handleBackFromCsvAgg} onLogout={handleLogout} />;
+  }
+
   // Page === 'replay'
-  return <ReplayPage onBack={handleBackToSessions} onLogout={handleLogout} />;
+  return (
+    <ReplayPage
+      onBack={handleBackToSessions}
+      onLogout={handleLogout}
+      onOpenCsvAgg={handleOpenCsvAggFromReplay}
+    />
+  );
 }
 
 export default App;

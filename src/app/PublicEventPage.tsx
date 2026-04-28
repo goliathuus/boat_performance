@@ -1,15 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useReplayStore } from '@/state/useReplayStore';
 import { useReplayClock } from '@/hooks/useReplayClock';
 import { ReplayMapWithData } from '@/components/replay/ReplayMap';
+import { BoatListPanel } from '@/components/replay/BoatListPanel';
 import { BoatListWidget } from '@/components/replay/BoatListWidget';
+import { GateRankingWidget } from '@/components/replay/GateRankingWidget';
 import { ReplayControls } from '@/components/replay/ReplayControls';
+import { ToolsPanel } from '@/components/replay/ToolsPanel';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Button } from '@/components/ui/button';
 import { usePublicEvent } from '@/hooks/usePublicEvent';
 import { usePublicTelemetry } from '@/hooks/usePublicTelemetry';
-import { exportSessionsToCSV } from '@/lib/csv-export';
-import { downloadCSV, generateCSVFilename } from '@/lib/csv-download';
 import type { Crossing, Gate, Result } from '@/types';
 
 interface PublicEventPageProps {
@@ -27,7 +27,8 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
   const globalTMax = useReplayStore((state) => state.globalTMax);
   const speed = useReplayStore((state) => state.speed);
   const setWindowStartTime = useReplayStore((state) => state.setWindowStartTime);
-  const [isExporting, setIsExporting] = useState(false);
+  const [activeTool, setActiveTool] = useState<string | null>(null);
+  const [openWidgets, setOpenWidgets] = useState<Set<string>>(new Set());
   const [gateStart, setGateStart] = useState<Gate | null>(null);
   const [gateFinish, setGateFinish] = useState<Gate | null>(null);
   const [gateDrawMode, setGateDrawMode] = useState<'none' | 'drawStart' | 'drawFinish'>('none');
@@ -36,6 +37,7 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
   const [selectedBoatId, setSelectedBoatId] = useState<string | null>(null);
   const [rankings, setRankings] = useState<Result[]>([]);
   const [crossingsByBoat, setCrossingsByBoat] = useState<Map<string, { start?: Crossing; finish?: Crossing }>>(new Map());
+  const centerOnBoatRef = useRef<((sessionId: string, currentTime: number) => void) | null>(null);
 
   useEffect(() => {
     resetReplay();
@@ -85,18 +87,9 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
     }
   }, [globalTMin, globalTMax, loadingTelemetry, clock, setWindowStartTime]);
 
-  const handleExportCSV = async () => {
-    setIsExporting(true);
-    try {
-      const csv = exportSessionsToCSV(selectedSessionIds, sessions);
-      const filename = generateCSVFilename(event?.title ?? 'public_event', selectedSessionIds.length > 1);
-      downloadCSV(csv, filename);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to export CSV');
-    } finally {
-      setIsExporting(false);
-    }
-  };
+  const handleMapReady = useCallback((centerOnBoat: (sessionId: string, currentTime: number) => void) => {
+    centerOnBoatRef.current = centerOnBoat;
+  }, []);
 
   if (loadingEvent) {
     return (
@@ -168,23 +161,43 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
 
   return (
     <div className="w-screen h-screen overflow-hidden flex flex-col">
-      <div className="absolute top-4 left-4 z-[1000] flex items-center gap-2 bg-background/90 border rounded-md px-3 py-2">
+      <div className="absolute top-4 left-16 z-[1000] flex items-center gap-2 bg-background/90 border rounded-md px-3 py-2">
         <div>
           <div className="font-semibold">{event.title}</div>
           <div className="text-xs text-muted-foreground">
             {event.starts_at ? new Date(event.starts_at).toLocaleString() : 'N/A'} - {event.ends_at ? new Date(event.ends_at).toLocaleString() : 'N/A'}
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={isExporting || selectedSessionIds.length === 0}>
-          {isExporting ? 'Exporting...' : 'Export CSV'}
-        </Button>
       </div>
 
       <div className="flex-1 relative">
+        <ToolsPanel
+          activeTool={activeTool}
+          onToolChange={setActiveTool}
+          openWidgets={openWidgets}
+          onToggleWidget={(widgetId) => {
+            setOpenWidgets((prev) => {
+              const next = new Set(prev);
+              if (widgetId === 'boatList' || widgetId === 'gateRanking') {
+                next.delete('boatList');
+                next.delete('gateRanking');
+                if (!prev.has(widgetId)) {
+                  next.add(widgetId);
+                }
+              } else if (next.has(widgetId)) {
+                next.delete(widgetId);
+              } else {
+                next.add(widgetId);
+              }
+              return next;
+            });
+          }}
+        />
         <ReplayMapWithData
           currentTime={clock.currentTime}
-          activeTool={null}
-          isGateRankingOpen={false}
+          onMapReady={handleMapReady}
+          activeTool={activeTool}
+          isGateRankingOpen={openWidgets.has('gateRanking')}
           gateStart={gateStart}
           gateFinish={gateFinish}
           gateDrawMode={gateDrawMode}
@@ -202,7 +215,48 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
           onSetCrossingsByBoat={setCrossingsByBoat}
           onSetSelectedBoatId={setSelectedBoatId}
         />
-        <BoatListWidget currentTime={clock.currentTime} />
+        <BoatListWidget
+          currentTime={clock.currentTime}
+          onCenterBoat={(sessionId) => {
+            if (centerOnBoatRef.current) {
+              centerOnBoatRef.current(sessionId, clock.currentTime);
+            }
+          }}
+        />
+        {openWidgets.has('boatList') && (
+          <div className="absolute top-0 right-0 z-[1000]" style={{ height: 'calc(100vh - 140px)', bottom: '140px' }}>
+            <BoatListPanel
+              currentTime={clock.currentTime}
+              onCenterBoat={(sessionId) => {
+                if (centerOnBoatRef.current) {
+                  centerOnBoatRef.current(sessionId, clock.currentTime);
+                }
+              }}
+            />
+          </div>
+        )}
+        {openWidgets.has('gateRanking') && (
+          <div className="absolute top-0 right-0 z-[1000]" style={{ height: 'calc(100vh - 140px)', bottom: '140px' }}>
+            <GateRankingWidget
+              gateStart={gateStart}
+              gateFinish={gateFinish}
+              gateDrawMode={gateDrawMode}
+              gateStartPartial={gateStartPartial}
+              gateFinishPartial={gateFinishPartial}
+              rankings={rankings}
+              crossingsByBoat={crossingsByBoat}
+              selectedBoatId={selectedBoatId}
+              onSetGateStart={setGateStart}
+              onSetGateFinish={setGateFinish}
+              onSetGateDrawMode={setGateDrawMode}
+              onSetGateStartPartial={setGateStartPartial}
+              onSetGateFinishPartial={setGateFinishPartial}
+              onSetRankings={setRankings}
+              onSetCrossingsByBoat={setCrossingsByBoat}
+              onSetSelectedBoatId={setSelectedBoatId}
+            />
+          </div>
+        )}
       </div>
 
       <ReplayControls currentTime={clock.currentTime} setCurrentTime={clock.setCurrentTime} />

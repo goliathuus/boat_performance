@@ -52,6 +52,8 @@ export function useEvents(): UseEventsResult {
               id: event.id,
               title: event.title,
               code: event.code,
+              share_token: event.share_token,
+              share_enabled: event.share_enabled ?? true,
               starts_at: event.starts_at,
               ends_at: event.ends_at,
               admin_user_id: event.admin_user_id,
@@ -75,7 +77,7 @@ export function useEvents(): UseEventsResult {
       // Fallback: Direct query (no filter - RLS policies will handle access control)
       const { data: directData, error: directError } = await supabase
         .from('events')
-        .select('id, title, code, starts_at, ends_at, admin_user_id, created_at')
+        .select('id, title, code, share_token, share_enabled, starts_at, ends_at, admin_user_id, created_at')
         .order('starts_at', { ascending: false });
 
       if (directError) {

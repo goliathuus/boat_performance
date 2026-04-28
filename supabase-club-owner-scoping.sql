@@ -345,9 +345,9 @@ BEGIN
     v_target_owner := auth.uid();
   END IF;
 
-  SELECT role INTO v_target_role
-  FROM public.users
-  WHERE id = v_target_owner;
+  SELECT u.role INTO v_target_role
+  FROM public.users u
+  WHERE u.id = v_target_owner;
 
   IF v_target_role IS NULL THEN
     RAISE EXCEPTION 'Owner user not found';
@@ -359,7 +359,7 @@ BEGIN
 
   LOOP
     v_code := upper(substr(md5(random()::text || clock_timestamp()::text), 1, 6));
-    EXIT WHEN NOT EXISTS (SELECT 1 FROM public.events WHERE code = v_code);
+    EXIT WHEN NOT EXISTS (SELECT 1 FROM public.events e WHERE e.code = v_code);
   END LOOP;
 
   RETURN QUERY

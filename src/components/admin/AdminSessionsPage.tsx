@@ -144,6 +144,7 @@ export function AdminSessionsPage({ onBack, onReplay, onReplayMultiple, onLogout
               onView={handleView}
               onStop={handleStop}
               onDelete={handleDeleteClick}
+              onShareUpdated={loadEvents}
               loading={loading}
             />
           </>
@@ -157,6 +158,9 @@ export function AdminSessionsPage({ onBack, onReplay, onReplayMultiple, onLogout
           eventId={selectedEventId}
           eventTitle={selectedEvent.title}
           eventCode={selectedEvent.code}
+          shareToken={selectedEvent.share_token}
+          shareEnabled={selectedEvent.share_enabled}
+          onShareUpdated={loadEvents}
           onClose={() => {
             setSelectedEventId(null);
             setSelectedEvent(null);

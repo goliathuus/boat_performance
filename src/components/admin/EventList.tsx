@@ -1,5 +1,6 @@
 import { EventWithStats } from '@/domain/types';
 import { Button } from '@/components/ui/button';
+import { PublicShareLink } from './PublicShareLink';
 
 function formatDateTime(dateString: string): string {
   const date = new Date(dateString);
@@ -17,10 +18,11 @@ interface EventListProps {
   onView: (eventId: string) => void;
   onStop: (eventId: string) => void;
   onDelete: (eventId: string) => void;
+  onShareUpdated?: () => void;
   loading?: boolean;
 }
 
-export function EventList({ events, onView, onStop, onDelete, loading }: EventListProps) {
+export function EventList({ events, onView, onStop, onDelete, onShareUpdated, loading }: EventListProps) {
   const getStatusBadge = (status: EventWithStats['status']) => {
     const styles = {
       active: 'bg-green-500/20 text-green-700 dark:text-green-400',
@@ -91,6 +93,13 @@ export function EventList({ events, onView, onStop, onDelete, loading }: EventLi
                   </div>
                 )}
               </div>
+              <PublicShareLink
+                eventId={event.id}
+                shareToken={event.share_token}
+                shareEnabled={event.share_enabled}
+                compact
+                onUpdated={() => onShareUpdated?.()}
+              />
             </div>
 
             <div className="flex gap-2 flex-shrink-0">

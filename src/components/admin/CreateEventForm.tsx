@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { createEvent, getAdminUsers, getUserRole } from '@/lib/supabase-admin';
 import type { AdminUser, UserRole } from '@/domain/types';
 import { Button } from '@/components/ui/button';
+import { PublicShareLink } from './PublicShareLink';
 
 interface CreateEventFormProps {
   onSuccess: (eventCode: string) => void;
@@ -16,6 +17,9 @@ export function CreateEventForm({ onSuccess, onCancel }: CreateEventFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdCode, setCreatedCode] = useState<string | null>(null);
+  const [createdEventId, setCreatedEventId] = useState<string | null>(null);
+  const [createdShareToken, setCreatedShareToken] = useState<string | null>(null);
+  const [createdShareEnabled, setCreatedShareEnabled] = useState(true);
   const [role, setRole] = useState<UserRole | null>(null);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [ownerAdminId, setOwnerAdminId] = useState<string>('');
@@ -59,6 +63,9 @@ export function CreateEventForm({ onSuccess, onCancel }: CreateEventFormProps) {
       const targetOwnerAdminId = role === 'super_admin' ? ownerAdminId || undefined : undefined;
       const event = await createEvent(title, startsAtDate, endsAtDate, targetOwnerAdminId);
       setCreatedCode(event.code);
+      setCreatedEventId(event.id);
+      setCreatedShareToken(event.share_token);
+      setCreatedShareEnabled(event.share_enabled);
       onSuccess(event.code);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create event');
@@ -98,6 +105,17 @@ export function CreateEventForm({ onSuccess, onCancel }: CreateEventFormProps) {
             Share this code with participants to join the event
           </p>
         </div>
+          {createdEventId && createdShareToken && (
+            <PublicShareLink
+              eventId={createdEventId}
+              shareToken={createdShareToken}
+              shareEnabled={createdShareEnabled}
+              onUpdated={(next) => {
+                setCreatedShareToken(next.share_token);
+                setCreatedShareEnabled(next.share_enabled);
+              }}
+            />
+          )}
         <div className="flex gap-3">
           <Button variant="outline" onClick={onCancel} className="flex-1">
             Close

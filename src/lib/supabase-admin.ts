@@ -34,6 +34,8 @@ export async function getAdminEvents(): Promise<EventWithStats[]> {
       id: event.id,
       title: event.title,
       code: event.code,
+      share_token: event.share_token,
+      share_enabled: event.share_enabled ?? true,
       starts_at: event.starts_at,
       ends_at: event.ends_at,
       admin_user_id: event.admin_user_id,
@@ -88,6 +90,8 @@ export async function createEvent(
     id: data[0].id,
     title: data[0].title,
     code: data[0].code,
+    share_token: data[0].share_token,
+    share_enabled: data[0].share_enabled ?? true,
     starts_at: data[0].starts_at,
     ends_at: data[0].ends_at,
     admin_user_id: data[0].admin_user_id,
@@ -185,6 +189,47 @@ export async function deleteSession(sessionId: string): Promise<void> {
   if (error) {
     throw new Error(`Failed to delete session: ${error.message}`);
   }
+}
+
+export async function regenerateEventShareToken(eventId: string): Promise<{ event_id: string; share_token: string; share_enabled: boolean }> {
+  const { data, error } = await supabase.rpc('admin_regenerate_event_share_token', {
+    p_event_id: eventId,
+  });
+
+  if (error) {
+    throw new Error(`Failed to regenerate share token: ${error.message}`);
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error('Failed to regenerate share token: No data returned');
+  }
+
+  return {
+    event_id: data[0].event_id,
+    share_token: data[0].share_token,
+    share_enabled: data[0].share_enabled,
+  };
+}
+
+export async function setEventShareEnabled(eventId: string, enabled: boolean): Promise<{ event_id: string; share_token: string; share_enabled: boolean }> {
+  const { data, error } = await supabase.rpc('admin_set_event_share_enabled', {
+    p_event_id: eventId,
+    p_enabled: enabled,
+  });
+
+  if (error) {
+    throw new Error(`Failed to update share status: ${error.message}`);
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error('Failed to update share status: No data returned');
+  }
+
+  return {
+    event_id: data[0].event_id,
+    share_token: data[0].share_token,
+    share_enabled: data[0].share_enabled,
+  };
 }
 
 /**

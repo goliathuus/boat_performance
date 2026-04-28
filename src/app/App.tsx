@@ -7,10 +7,11 @@ import { AdminSessionsPage } from '@/components/admin/AdminSessionsPage';
 import { CsvAggregatorPage } from '@/components/replay/CsvAggregatorPage';
 import { useReplayStore } from '@/state/useReplayStore';
 import { determineSessionEndTime } from '@/lib/session-utils';
+import { PublicEventPage } from './PublicEventPage';
 
 type AppPage = 'auth' | 'sessions' | 'replay' | 'admin' | 'csvAgg';
 
-function App() {
+function AuthenticatedApp() {
   const [page, setPage] = useState<AppPage>('auth');
   const [csvAggReturnPage, setCsvAggReturnPage] = useState<'sessions' | 'replay'>('sessions');
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -210,6 +211,15 @@ function App() {
       onOpenCsvAgg={handleOpenCsvAggFromReplay}
     />
   );
+}
+
+function App() {
+  const publicMatch = window.location.pathname.match(/^\/public\/([^/]+)\/?$/);
+  if (publicMatch) {
+    return <PublicEventPage token={publicMatch[1]} />;
+  }
+
+  return <AuthenticatedApp />;
 }
 
 export default App;

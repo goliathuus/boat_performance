@@ -40,6 +40,8 @@ export type Event = {
   id: string;
   title: string;
   code: string;
+  share_token: string;
+  share_enabled: boolean;
   starts_at: string;
   ends_at: string;
   admin_user_id: string;

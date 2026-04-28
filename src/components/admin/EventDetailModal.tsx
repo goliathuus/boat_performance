@@ -4,6 +4,7 @@ import { determineSessionEndTime } from '@/lib/session-utils';
 import { useReplayStore } from '@/state/useReplayStore';
 import { Button } from '@/components/ui/button';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { PublicShareLink } from './PublicShareLink';
 import type { AdminSession } from '@/domain/types';
 
 function formatDateTime(dateString: string): string {
@@ -22,6 +23,9 @@ interface EventDetailModalProps {
   eventId: string;
   eventTitle: string;
   eventCode: string;
+  shareToken: string;
+  shareEnabled: boolean;
+  onShareUpdated?: () => void;
   onClose: () => void;
   onReplay: (sessionId: string) => void;
   onReplayMultiple?: (sessionIds: string[]) => void;
@@ -32,6 +36,9 @@ export function EventDetailModal({
   eventId,
   eventTitle,
   eventCode,
+  shareToken,
+  shareEnabled,
+  onShareUpdated,
   onClose,
   onReplay,
   onReplayMultiple,
@@ -92,6 +99,14 @@ export function EventDetailModal({
             <div>
               <h2 className="text-2xl font-semibold">{eventTitle}</h2>
               <p className="text-sm text-muted-foreground font-mono">{eventCode}</p>
+              <div className="mt-3">
+                <PublicShareLink
+                  eventId={eventId}
+                  shareToken={shareToken}
+                  shareEnabled={shareEnabled}
+                  onUpdated={() => onShareUpdated?.()}
+                />
+              </div>
             </div>
             <div className="flex gap-2">
               {sessions.length > 0 && onReplayMultiple && (

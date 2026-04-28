@@ -80,10 +80,11 @@ export const useReplayStore = create<ReplayState>((set, get) => ({
   addSession: (sessionId, name, tMin, tMax, boatDisplayName) => {
     const sessions = new Map(get().sessions);
     if (!sessions.has(sessionId)) {
+      const usedColors = Array.from(sessions.values()).map((s) => s.color);
       sessions.set(sessionId, {
         id: sessionId,
         name,
-        color: generateBoatColor(sessionId),
+        color: generateBoatColor(sessionId, 70, 50, usedColors),
         tMin,
         tMax,
         points: [],
@@ -107,10 +108,11 @@ export const useReplayStore = create<ReplayState>((set, get) => ({
     
     sessionsToAdd.forEach(({ sessionId, name, tMin, tMax, boatDisplayName }) => {
       if (!sessions.has(sessionId)) {
+        const usedColors = Array.from(sessions.values()).map((s) => s.color);
         sessions.set(sessionId, {
           id: sessionId,
           name,
-          color: generateBoatColor(sessionId),
+          color: generateBoatColor(sessionId, 70, 50, usedColors),
           tMin,
           tMax,
           points: [],

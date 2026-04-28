@@ -1,44 +1,51 @@
 /**
- * Predefined palette of distinct colors for boats
- * These colors are chosen to be visually distinct and have good contrast
+ * Ultra high-contrast palette for boat traces.
+ * Ordered so first boats are immediately distinguishable at a glance.
  */
-const DISTINCT_COLORS = [
-  'hsl(0, 70%, 50%)',    // Red
-  'hsl(210, 70%, 50%)',  // Blue
-  'hsl(120, 70%, 50%)',  // Green
-  'hsl(30, 70%, 50%)',   // Orange
-  'hsl(270, 70%, 50%)',  // Purple
-  'hsl(60, 70%, 50%)',   // Yellow
-  'hsl(180, 70%, 50%)',  // Cyan
-  'hsl(330, 70%, 50%)',  // Pink
-  'hsl(45, 70%, 50%)',   // Gold
-  'hsl(150, 70%, 50%)',  // Teal
-  'hsl(300, 70%, 50%)',  // Magenta
-  'hsl(15, 70%, 50%)',   // Coral
-  'hsl(240, 70%, 50%)',  // Dark Blue
-  'hsl(90, 70%, 50%)',   // Lime
-  'hsl(195, 70%, 50%)',  // Sky Blue
-  'hsl(345, 70%, 50%)',  // Rose
+const HIGH_CONTRAST_COLORS = [
+  '#0057ff', // vivid blue
+  '#00a651', // vivid green
+  '#ff1f1f', // vivid red
+  '#ff2fa3', // vivid pink
+  '#8b4513', // brown
+  '#00c8ff', // cyan
+  '#ffd400', // yellow
+  '#7a00ff', // purple
+  '#ff7a00', // orange
+  '#1a1a1a', // black
+  '#9cff00', // lime
+  '#00ffd5', // turquoise
+  '#ff004d', // rose red
+  '#6a4c93', // deep violet
+  '#3d5a40', // dark green
 ];
 
 /**
- * Generate a distinct color for a boat based on its ID
- * Uses a predefined palette of distinct colors to ensure visual differentiation
+ * Generate a distinct color for a boat.
+ * - If usedColors are provided, prefers the first unused high-contrast color.
+ * - Otherwise uses a deterministic hash for stable color assignment.
  */
-export function generateBoatColor(boatId: string, _saturation = 70, _lightness = 50): string {
-  // Hash boat ID to get a consistent index
+export function generateBoatColor(
+  boatId: string,
+  _saturation = 70,
+  _lightness = 50,
+  usedColors: string[] = []
+): string {
+  // Prefer sequential first-unused color to maximize contrast within the current replay.
+  const usedSet = new Set(usedColors.map((c) => c.toLowerCase()));
+  for (const color of HIGH_CONTRAST_COLORS) {
+    if (!usedSet.has(color.toLowerCase())) {
+      return color;
+    }
+  }
+
+  // Fallback for very large fleets: deterministic hash index.
   let hash = 0;
   for (let i = 0; i < boatId.length; i++) {
     hash = ((hash << 5) - hash) + boatId.charCodeAt(i);
-    hash = hash & hash; // Convert to 32-bit integer
+    hash = hash & hash;
   }
-  
-  // Use hash to select from predefined palette
-  // This ensures each boat gets a distinct, visually different color
-  const colorIndex = Math.abs(hash) % DISTINCT_COLORS.length;
-  
-  // Return the selected color from the palette
-  return DISTINCT_COLORS[colorIndex];
+  return HIGH_CONTRAST_COLORS[Math.abs(hash) % HIGH_CONTRAST_COLORS.length];
 }
 
 /**

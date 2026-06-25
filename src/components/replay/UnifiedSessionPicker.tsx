@@ -10,6 +10,7 @@ import { exportEventToCSV, exportSessionToCSV, exportSessionFromSupabase } from 
 import { downloadCSV, generateCSVFilename } from '@/lib/csv-download';
 import { determineSessionEndTime } from '@/lib/session-utils';
 import { CsvLoadModal } from './CsvLoadModal';
+import { StravaSubmitCallout } from '@/components/StravaSubmitCallout';
 
 type TabType = 'events' | 'sessions';
 
@@ -219,6 +220,7 @@ export function UnifiedSessionPicker({
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-semibold">Select Sessions to Replay</h1>
           <div className="flex gap-2">
+            <StravaSubmitCallout variant="header" />
             {isAdmin && onOpenAdmin && (
               <Button variant="outline" size="sm" onClick={onOpenAdmin}>
                 Gestion des sessions

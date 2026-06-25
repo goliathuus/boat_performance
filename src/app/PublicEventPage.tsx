@@ -8,9 +8,18 @@ import { GateRankingWidget } from '@/components/replay/GateRankingWidget';
 import { ReplayControls } from '@/components/replay/ReplayControls';
 import { ToolsPanel } from '@/components/replay/ToolsPanel';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Button } from '@/components/ui/button';
 import { usePublicEvent } from '@/hooks/usePublicEvent';
 import { usePublicTelemetry } from '@/hooks/usePublicTelemetry';
 import type { Crossing, Gate, Result } from '@/types';
+import { Replay3DView } from '@/views/Replay3DView';
+import { CourseDetectSheet } from '@/components/replay/CourseDetectSheet';
+import {
+  detectRoundingMarksFromSessions,
+  excludeNearConfirmed,
+  type ConfirmedCourseBuoy,
+  type InferredMarkCandidate,
+} from '@/lib/inferredMarks';
 
 interface PublicEventPageProps {
   token: string;
@@ -23,12 +32,17 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
   const setSelectedSessions = useReplayStore((state) => state.setSelectedSessions);
   const sessions = useReplayStore((state) => state.sessions);
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
+  const hiddenSessionIds = useReplayStore((state) => state.hiddenSessionIds);
   const globalTMin = useReplayStore((state) => state.globalTMin);
   const globalTMax = useReplayStore((state) => state.globalTMax);
   const speed = useReplayStore((state) => state.speed);
   const setWindowStartTime = useReplayStore((state) => state.setWindowStartTime);
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [openWidgets, setOpenWidgets] = useState<Set<string>>(new Set());
+  const [replayViewMode, setReplayViewMode] = useState<'2d' | '3d'>('2d');
+  const [courseDetectOpen, setCourseDetectOpen] = useState(false);
+  const [courseCandidates, setCourseCandidates] = useState<InferredMarkCandidate[]>([]);
+  const [courseConfirmed, setCourseConfirmed] = useState<ConfirmedCourseBuoy[]>([]);
   const [gateStart, setGateStart] = useState<Gate | null>(null);
   const [gateFinish, setGateFinish] = useState<Gate | null>(null);
   const [gateDrawMode, setGateDrawMode] = useState<'none' | 'drawStart' | 'drawFinish'>('none');
@@ -89,6 +103,30 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
 
   const handleMapReady = useCallback((centerOnBoat: (sessionId: string, currentTime: number) => void) => {
     centerOnBoatRef.current = centerOnBoat;
+  }, []);
+
+  const runCourseDetection = useCallback(() => {
+    const visibleIds = selectedSessionIds.filter((id) => !hiddenSessionIds.has(id));
+    const raw = detectRoundingMarksFromSessions(sessions, visibleIds);
+    setCourseCandidates(excludeNearConfirmed(raw, courseConfirmed));
+    setCourseDetectOpen(true);
+  }, [selectedSessionIds, hiddenSessionIds, sessions, courseConfirmed]);
+
+  const handleConfirmCourseCandidate = useCallback((id: string) => {
+    setCourseCandidates((prev) => {
+      const c = prev.find((x) => x.id === id);
+      if (!c) return prev;
+      setCourseConfirmed((conf) => [...conf, { id: crypto.randomUUID(), lat: c.lat, lon: c.lon }]);
+      return prev.filter((x) => x.id !== id);
+    });
+  }, []);
+
+  const handleRejectCourseCandidate = useCallback((id: string) => {
+    setCourseCandidates((prev) => prev.filter((x) => x.id !== id));
+  }, []);
+
+  const handleClearConfirmedBuoys = useCallback(() => {
+    setCourseConfirmed([]);
   }, []);
 
   if (loadingEvent) {
@@ -161,14 +199,53 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
 
   return (
     <div className="w-screen h-screen overflow-hidden flex flex-col">
-      <div className="absolute top-4 left-16 z-[1000] flex items-center gap-2 bg-background/90 border rounded-md px-3 py-2">
+      <div className="absolute top-4 left-16 z-[1000] flex flex-wrap items-center gap-3 bg-background/90 border rounded-md px-3 py-2">
         <div>
           <div className="font-semibold">{event.title}</div>
           <div className="text-xs text-muted-foreground">
             {event.starts_at ? new Date(event.starts_at).toLocaleString() : 'N/A'} - {event.ends_at ? new Date(event.ends_at).toLocaleString() : 'N/A'}
           </div>
         </div>
+        <div className="flex gap-1 rounded-md border bg-background p-0.5">
+          <Button
+            type="button"
+            variant={replayViewMode === '2d' ? 'default' : 'ghost'}
+            size="sm"
+            className="h-8 px-3"
+            onClick={() => setReplayViewMode('2d')}
+          >
+            Vue 2D
+          </Button>
+          <Button
+            type="button"
+            variant={replayViewMode === '3d' ? 'default' : 'ghost'}
+            size="sm"
+            className="h-8 px-3"
+            onClick={() => setReplayViewMode('3d')}
+          >
+            Vue 3D
+          </Button>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          title="Détecter des bouées probables depuis les virages GPS"
+          onClick={runCourseDetection}
+        >
+          Parcours (GPS)
+        </Button>
       </div>
+
+      <CourseDetectSheet
+        open={courseDetectOpen}
+        onOpenChange={setCourseDetectOpen}
+        candidates={courseCandidates}
+        confirmed={courseConfirmed}
+        onConfirmCandidate={handleConfirmCourseCandidate}
+        onRejectCandidate={handleRejectCourseCandidate}
+        onClearConfirmed={handleClearConfirmedBuoys}
+      />
 
       <div className="flex-1 relative">
         <ToolsPanel
@@ -193,28 +270,34 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
             });
           }}
         />
-        <ReplayMapWithData
-          currentTime={clock.currentTime}
-          onMapReady={handleMapReady}
-          activeTool={activeTool}
-          isGateRankingOpen={openWidgets.has('gateRanking')}
-          gateStart={gateStart}
-          gateFinish={gateFinish}
-          gateDrawMode={gateDrawMode}
-          gateStartPartial={gateStartPartial}
-          gateFinishPartial={gateFinishPartial}
-          rankings={rankings}
-          crossingsByBoat={crossingsByBoat}
-          selectedBoatId={selectedBoatId}
-          onSetGateStart={setGateStart}
-          onSetGateFinish={setGateFinish}
-          onSetGateDrawMode={setGateDrawMode}
-          onSetGateStartPartial={setGateStartPartial}
-          onSetGateFinishPartial={setGateFinishPartial}
-          onSetRankings={setRankings}
-          onSetCrossingsByBoat={setCrossingsByBoat}
-          onSetSelectedBoatId={setSelectedBoatId}
-        />
+        {replayViewMode === '2d' ? (
+          <ReplayMapWithData
+            currentTime={clock.currentTime}
+            onMapReady={handleMapReady}
+            activeTool={activeTool}
+            isGateRankingOpen={openWidgets.has('gateRanking')}
+            gateStart={gateStart}
+            gateFinish={gateFinish}
+            gateDrawMode={gateDrawMode}
+            gateStartPartial={gateStartPartial}
+            gateFinishPartial={gateFinishPartial}
+            rankings={rankings}
+            crossingsByBoat={crossingsByBoat}
+            selectedBoatId={selectedBoatId}
+            onSetGateStart={setGateStart}
+            onSetGateFinish={setGateFinish}
+            onSetGateDrawMode={setGateDrawMode}
+            onSetGateStartPartial={setGateStartPartial}
+            onSetGateFinishPartial={setGateFinishPartial}
+            onSetRankings={setRankings}
+            onSetCrossingsByBoat={setCrossingsByBoat}
+            onSetSelectedBoatId={setSelectedBoatId}
+            courseBuoyCandidates={courseCandidates}
+            courseBuoysConfirmed={courseConfirmed}
+          />
+        ) : (
+          <Replay3DView currentTime={clock.currentTime} />
+        )}
         <BoatListWidget
           currentTime={clock.currentTime}
           onCenterBoat={(sessionId) => {

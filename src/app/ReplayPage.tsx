@@ -14,6 +14,14 @@ import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { exportSessionsToCSV } from '@/lib/csv-export';
 import { downloadCSV, generateCSVFilename } from '@/lib/csv-download';
+import { Replay3DView } from '@/views/Replay3DView';
+import { CourseDetectSheet } from '@/components/replay/CourseDetectSheet';
+import {
+  detectRoundingMarksFromSessions,
+  excludeNearConfirmed,
+  type ConfirmedCourseBuoy,
+  type InferredMarkCandidate,
+} from '@/lib/inferredMarks';
 
 interface ReplayPageProps {
   onBack: () => void;
@@ -23,6 +31,7 @@ interface ReplayPageProps {
 
 export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) {
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
+  const hiddenSessionIds = useReplayStore((state) => state.hiddenSessionIds);
   const sessions = useReplayStore((state) => state.sessions);
   const globalTMin = useReplayStore((state) => state.globalTMin);
   const globalTMax = useReplayStore((state) => state.globalTMax);
@@ -32,7 +41,11 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
   const [isExporting, setIsExporting] = useState(false);
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [openWidgets, setOpenWidgets] = useState<Set<string>>(new Set());
-  
+  const [replayViewMode, setReplayViewMode] = useState<'2d' | '3d'>('2d');
+  const [courseDetectOpen, setCourseDetectOpen] = useState(false);
+  const [courseCandidates, setCourseCandidates] = useState<InferredMarkCandidate[]>([]);
+  const [courseConfirmed, setCourseConfirmed] = useState<ConfirmedCourseBuoy[]>([]);
+
   // Gate Ranking state
   const [gateStart, setGateStart] = useState<Gate | null>(null);
   const [gateFinish, setGateFinish] = useState<Gate | null>(null);
@@ -51,6 +64,30 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
   
   const handleMapReady = useCallback((centerOnBoat: (sessionId: string, currentTime: number) => void) => {
     centerOnBoatRef.current = centerOnBoat;
+  }, []);
+
+  const runCourseDetection = useCallback(() => {
+    const visibleIds = selectedSessionIds.filter((id) => !hiddenSessionIds.has(id));
+    const raw = detectRoundingMarksFromSessions(sessions, visibleIds);
+    setCourseCandidates(excludeNearConfirmed(raw, courseConfirmed));
+    setCourseDetectOpen(true);
+  }, [selectedSessionIds, hiddenSessionIds, sessions, courseConfirmed]);
+
+  const handleConfirmCourseCandidate = useCallback((id: string) => {
+    setCourseCandidates((prev) => {
+      const c = prev.find((x) => x.id === id);
+      if (!c) return prev;
+      setCourseConfirmed((conf) => [...conf, { id: crypto.randomUUID(), lat: c.lat, lon: c.lon }]);
+      return prev.filter((x) => x.id !== id);
+    });
+  }, []);
+
+  const handleRejectCourseCandidate = useCallback((id: string) => {
+    setCourseCandidates((prev) => prev.filter((x) => x.id !== id));
+  }, []);
+
+  const handleClearConfirmedBuoys = useCallback(() => {
+    setCourseConfirmed([]);
   }, []);
 
   // Load telemetry using unified hook
@@ -174,28 +211,34 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
           }}
         />
         
-        <ReplayMapWithData 
-          currentTime={clock.currentTime} 
-          onMapReady={handleMapReady}
-          activeTool={activeTool}
-          isGateRankingOpen={openWidgets.has('gateRanking')}
-          gateStart={gateStart}
-          gateFinish={gateFinish}
-          gateDrawMode={gateDrawMode}
-          gateStartPartial={gateStartPartial}
-          gateFinishPartial={gateFinishPartial}
-          rankings={rankings}
-          crossingsByBoat={crossingsByBoat}
-          selectedBoatId={selectedBoatId}
-          onSetGateStart={setGateStart}
-          onSetGateFinish={setGateFinish}
-          onSetGateDrawMode={setGateDrawMode}
-          onSetGateStartPartial={setGateStartPartial}
-          onSetGateFinishPartial={setGateFinishPartial}
-          onSetRankings={setRankings}
-          onSetCrossingsByBoat={setCrossingsByBoat}
-          onSetSelectedBoatId={setSelectedBoatId}
-        />
+        {replayViewMode === '2d' ? (
+          <ReplayMapWithData
+            currentTime={clock.currentTime}
+            onMapReady={handleMapReady}
+            activeTool={activeTool}
+            isGateRankingOpen={openWidgets.has('gateRanking')}
+            gateStart={gateStart}
+            gateFinish={gateFinish}
+            gateDrawMode={gateDrawMode}
+            gateStartPartial={gateStartPartial}
+            gateFinishPartial={gateFinishPartial}
+            rankings={rankings}
+            crossingsByBoat={crossingsByBoat}
+            selectedBoatId={selectedBoatId}
+            onSetGateStart={setGateStart}
+            onSetGateFinish={setGateFinish}
+            onSetGateDrawMode={setGateDrawMode}
+            onSetGateStartPartial={setGateStartPartial}
+            onSetGateFinishPartial={setGateFinishPartial}
+            onSetRankings={setRankings}
+            onSetCrossingsByBoat={setCrossingsByBoat}
+            onSetSelectedBoatId={setSelectedBoatId}
+            courseBuoyCandidates={courseCandidates}
+            courseBuoysConfirmed={courseConfirmed}
+          />
+        ) : (
+          <Replay3DView currentTime={clock.currentTime} />
+        )}
 
         {/* Boat List Widget - always visible, compact format */}
         <BoatListWidget 
@@ -246,9 +289,35 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
         )}
 
         {/* Top toolbar */}
-        <div className="absolute top-4 left-16 z-[1000] flex gap-2">
+        <div className="absolute top-4 left-16 z-[1000] flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={onBack}>
             ← Back
+          </Button>
+          <div className="flex gap-1 rounded-md border bg-background/90 p-0.5">
+            <Button
+              variant={replayViewMode === '2d' ? 'default' : 'ghost'}
+              size="sm"
+              className="h-8 px-3"
+              onClick={() => setReplayViewMode('2d')}
+            >
+              Vue 2D
+            </Button>
+            <Button
+              variant={replayViewMode === '3d' ? 'default' : 'ghost'}
+              size="sm"
+              className="h-8 px-3"
+              onClick={() => setReplayViewMode('3d')}
+            >
+              Vue 3D
+            </Button>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            title="Détecter des bouées probables depuis les virages GPS"
+            onClick={runCourseDetection}
+          >
+            Parcours (GPS)
           </Button>
           <Button
             variant="outline"
@@ -271,6 +340,16 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
             </Button>
           )}
         </div>
+
+        <CourseDetectSheet
+          open={courseDetectOpen}
+          onOpenChange={setCourseDetectOpen}
+          candidates={courseCandidates}
+          confirmed={courseConfirmed}
+          onConfirmCandidate={handleConfirmCourseCandidate}
+          onRejectCandidate={handleRejectCourseCandidate}
+          onClearConfirmed={handleClearConfirmedBuoys}
+        />
       </div>
 
       {/* Replay Controls - bottom */}

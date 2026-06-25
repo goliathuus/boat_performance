@@ -1,10 +1,21 @@
 import { useEffect, useRef, useMemo, memo, useCallback, useState } from 'react';
-import { MapContainer, TileLayer, Polyline, Marker, Tooltip, Popup, useMap, useMapEvents } from 'react-leaflet';
+import {
+  MapContainer,
+  TileLayer,
+  Polyline,
+  Marker,
+  Tooltip,
+  Popup,
+  CircleMarker,
+  useMap,
+  useMapEvents,
+} from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useReplayStore } from '@/state/useReplayStore';
 import type { TrackPoint } from '@/domain/types';
 import type { Gate, Result, Crossing } from '@/types';
+import type { ConfirmedCourseBuoy, InferredMarkCandidate } from '@/lib/inferredMarks';
 import { computeGateRankings, type Vec2 } from '@/lib/gateRanking';
 // Helper to find the last point at or before currentTime
 function findLastPoint(points: TrackPoint[], currentTime: number): TrackPoint | null {
@@ -379,6 +390,8 @@ interface ReplayMapContentProps {
   onSetRankings: (rankings: Result[]) => void;
   onSetCrossingsByBoat: (crossings: Map<string, { start?: Crossing; finish?: Crossing }>) => void;
   onSetSelectedBoatId: (boatId: string | null) => void;
+  courseBuoyCandidates: InferredMarkCandidate[];
+  courseBuoysConfirmed: ConfirmedCourseBuoy[];
 }
 
 const ReplayMapContent = memo(function ReplayMapContent({ 
@@ -402,6 +415,8 @@ const ReplayMapContent = memo(function ReplayMapContent({
   onSetRankings,
   onSetCrossingsByBoat,
   onSetSelectedBoatId: _onSetSelectedBoatId,
+  courseBuoyCandidates,
+  courseBuoysConfirmed,
 }: ReplayMapContentProps) {
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
   const hiddenSessionIds = useReplayStore((state) => state.hiddenSessionIds);
@@ -772,6 +787,41 @@ const ReplayMapContent = memo(function ReplayMapContent({
           </Tooltip>
         </Marker>
       )}
+      {/* Bouées détectées depuis GPS (validation utilisateur) */}
+      {courseBuoysConfirmed.map((b, i) => (
+        <CircleMarker
+          key={b.id}
+          center={[b.lat, b.lon]}
+          radius={9}
+          pathOptions={{
+            color: '#166534',
+            weight: 2,
+            fillColor: '#22c55e',
+            fillOpacity: 0.88,
+          }}
+        >
+          <Tooltip permanent direction="top" offset={[0, -8]}>
+            <span className="text-xs font-semibold">Bouée {i + 1}</span>
+          </Tooltip>
+        </CircleMarker>
+      ))}
+      {courseBuoyCandidates.map((c) => (
+        <CircleMarker
+          key={c.id}
+          center={[c.lat, c.lon]}
+          radius={8}
+          pathOptions={{
+            color: '#c2410c',
+            weight: 2,
+            fillColor: '#fb923c',
+            fillOpacity: 0.62,
+          }}
+        >
+          <Tooltip direction="top">
+            <span className="text-xs">Candidat · score {c.score}</span>
+          </Tooltip>
+        </CircleMarker>
+      ))}
       {/* Crossing markers for selected boat */}
       {selectedBoatCrossings && (
         <>
@@ -925,6 +975,8 @@ interface ReplayMapProps {
   onSetRankings: (rankings: Result[]) => void;
   onSetCrossingsByBoat: (crossings: Map<string, { start?: Crossing; finish?: Crossing }>) => void;
   onSetSelectedBoatId: (boatId: string | null) => void;
+  courseBuoyCandidates?: InferredMarkCandidate[];
+  courseBuoysConfirmed?: ConfirmedCourseBuoy[];
 }
 
 export function ReplayMap({ 
@@ -948,6 +1000,8 @@ export function ReplayMap({
   onSetRankings,
   onSetCrossingsByBoat,
   onSetSelectedBoatId,
+  courseBuoyCandidates = [],
+  courseBuoysConfirmed = [],
 }: ReplayMapProps) {
   return (
     <MapContainer
@@ -981,6 +1035,8 @@ export function ReplayMap({
         onSetRankings={onSetRankings}
         onSetCrossingsByBoat={onSetCrossingsByBoat}
         onSetSelectedBoatId={onSetSelectedBoatId}
+        courseBuoyCandidates={courseBuoyCandidates}
+        courseBuoysConfirmed={courseBuoysConfirmed}
       />
     </MapContainer>
   );
@@ -1008,6 +1064,8 @@ interface ReplayMapWithDataProps {
   onSetRankings: (rankings: Result[]) => void;
   onSetCrossingsByBoat: (crossings: Map<string, { start?: Crossing; finish?: Crossing }>) => void;
   onSetSelectedBoatId: (boatId: string | null) => void;
+  courseBuoyCandidates?: InferredMarkCandidate[];
+  courseBuoysConfirmed?: ConfirmedCourseBuoy[];
 }
 
 export function ReplayMapWithData({ 
@@ -1031,6 +1089,8 @@ export function ReplayMapWithData({
   onSetRankings,
   onSetCrossingsByBoat,
   onSetSelectedBoatId,
+  courseBuoyCandidates,
+  courseBuoysConfirmed,
 }: ReplayMapWithDataProps) {
   return (
     <ReplayMap 
@@ -1054,6 +1114,8 @@ export function ReplayMapWithData({
       onSetRankings={onSetRankings}
       onSetCrossingsByBoat={onSetCrossingsByBoat}
       onSetSelectedBoatId={onSetSelectedBoatId}
+      courseBuoyCandidates={courseBuoyCandidates}
+      courseBuoysConfirmed={courseBuoysConfirmed}
     />
   );
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
+import { StravaSubmitCallout } from '@/components/StravaSubmitCallout';
 
 interface LoginPageProps {
   onLoginSuccess: () => void;
@@ -271,7 +272,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
       </div>
 
       {/* Right Section - Form */}
-      <div className="flex-1 flex items-center justify-center p-6 md:p-12 relative z-10">
+      <div className="flex-1 flex items-center justify-center p-6 md:p-12 pb-24 relative z-10 overflow-y-auto">
         <div className="w-full max-w-md animate-slideInRight">
           {/* Glassmorphism Card */}
           <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl shadow-2xl p-6 md:p-10">
@@ -385,6 +386,10 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   Pas encore de compte ? S'inscrire
                 </button>
               )}
+            </div>
+
+            <div className="mt-5 pt-5 border-t border-white/20">
+              <StravaSubmitCallout variant="login" />
             </div>
           </div>
         </div>

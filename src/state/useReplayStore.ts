@@ -84,7 +84,7 @@ export const useReplayStore = create<ReplayState>((set, get) => ({
       sessions.set(sessionId, {
         id: sessionId,
         name,
-        color: generateBoatColor(sessionId, 70, 50, usedColors),
+        color: generateBoatColor(sessionId, usedColors),
         tMin,
         tMax,
         points: [],
@@ -112,7 +112,7 @@ export const useReplayStore = create<ReplayState>((set, get) => ({
         sessions.set(sessionId, {
           id: sessionId,
           name,
-          color: generateBoatColor(sessionId, 70, 50, usedColors),
+          color: generateBoatColor(sessionId, usedColors),
           tMin,
           tMax,
           points: [],

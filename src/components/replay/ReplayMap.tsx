@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, memo, useCallback, useState } from 'react';
+import { useEffect, useRef, useMemo, memo, useCallback, useState, Fragment } from 'react';
 import {
   MapContainer,
   TileLayer,
@@ -15,6 +15,7 @@ import 'leaflet/dist/leaflet.css';
 import { useReplayStore } from '@/state/useReplayStore';
 import type { TrackPoint } from '@/domain/types';
 import type { Gate, Result, Crossing } from '@/types';
+import { TRACK_CASING_COLOR } from '@/lib/color';
 import type { ConfirmedCourseBuoy, InferredMarkCandidate } from '@/lib/inferredMarks';
 import { computeGateRankings, type Vec2 } from '@/lib/gateRanking';
 // Helper to find the last point at or before currentTime
@@ -65,7 +66,15 @@ function FitBounds({ bounds, enabled }: FitBoundsProps) {
 /**
  * Create boat icon SVG oriented according to COG (Course Over Ground)
  */
-function createBoatIcon(cog: number | undefined, boatColor: string): L.DivIcon {
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function createBoatIcon(cog: number | undefined, boatColor: string, name: string): L.DivIcon {
   // Default angle if COG not available (point north/up)
   const angle = cog !== undefined ? cog : 0;
   // COG is in degrees where 0° = North, 90° = East, etc.
@@ -81,9 +90,29 @@ function createBoatIcon(cog: number | undefined, boatColor: string): L.DivIcon {
     </svg>
   `;
 
+  // Etiquette permanente : au-dela de trois bateaux la couleur ne suffit plus a
+  // les distinguer sur la carte, c'est le nom qui porte l'identite. Chrome neutre
+  // (pastille blanche, encre sombre) pour ne pas concurrencer les traces ; la
+  // pastille de couleur fait le lien avec la trace.
+  const label = `
+    <span style="
+      position:absolute; left:27px; top:50%; transform:translateY(-50%);
+      display:inline-flex; align-items:center; gap:5px;
+      max-width:150px; padding:2px 7px 2px 5px;
+      background:#ffffff; border:1px solid rgba(15,23,42,.16);
+      border-radius:3px; box-shadow:0 1px 2px rgba(15,23,42,.18);
+      font:600 11px/1.35 system-ui,-apple-system,'Segoe UI',sans-serif;
+      letter-spacing:.01em; color:#101520; white-space:nowrap;
+      overflow:hidden; text-overflow:ellipsis; pointer-events:none;
+    ">
+      <span style="width:6px;height:6px;border-radius:50%;background:${boatColor};flex:none;"></span>
+      ${escapeHtml(name)}
+    </span>
+  `;
+
   return L.divIcon({
     className: 'boat-marker',
-    html: svg,
+    html: `<div style="position:relative;width:24px;height:24px;">${svg}${label}</div>`,
     iconSize: [24, 24],
     iconAnchor: [12, 12],
   });
@@ -103,10 +132,10 @@ interface BoatMarkerProps {
 // Memoize boat icons to prevent recreation on every render
 const boatIconCache = new Map<string, L.DivIcon>();
 
-function getBoatIcon(cog: number | undefined, color: string): L.DivIcon {
-  const key = `${color}-${cog ?? 'none'}`;
+function getBoatIcon(cog: number | undefined, color: string, name: string): L.DivIcon {
+  const key = `${color}-${cog ?? 'none'}-${name}`;
   if (!boatIconCache.has(key)) {
-    boatIconCache.set(key, createBoatIcon(cog ?? undefined, color));
+    boatIconCache.set(key, createBoatIcon(cog ?? undefined, color, name));
   }
   return boatIconCache.get(key)!;
 }
@@ -114,7 +143,7 @@ function getBoatIcon(cog: number | undefined, color: string): L.DivIcon {
 const BoatMarker = memo(function BoatMarker({ position, color, name, speed, cog, currentTime, sessionId, onFocus }: BoatMarkerProps) {
   if (!position) return null;
 
-  const icon = getBoatIcon(cog ?? undefined, color);
+  const icon = getBoatIcon(cog ?? undefined, color, name);
 
   return (
     <Marker 
@@ -913,23 +942,37 @@ const ReplayMapContent = memo(function ReplayMapContent({
         }
 
         return (
-          <div key={sessionId}>
+          <Fragment key={sessionId}>
             {/* Progressive track (all points up to currentTime) - simple color, no SOG coloring */}
             {/* Focused session has thicker, more opaque track */}
             {/* Show track even if it has fewer than 2 points (might be loading) */}
             {progressiveTrackPositions.length >= 2 ? (
-              <Polyline
+              <>
+                {/* Liseré blanc : six des huit teintes de flotte passent sous 3:1
+                    contre le gris de la carte. Le casing les rattrape et démêle
+                    les croisements de traces. */}
+                <Polyline
+                  positions={progressiveTrackPositions}
+                  pathOptions={{
+                    color: TRACK_CASING_COLOR,
+                    weight: isFocused ? 8 : 5,
+                    opacity: 0.9,
+                    lineCap: 'round',
+                    lineJoin: 'round',
+                    interactive: false,
+                  }}
+                />
+                <Polyline
                   positions={progressiveTrackPositions}
                   pathOptions={{
                     color: session.color,
                     weight: isFocused ? 6 : 3,
-                    opacity: isFocused ? 1.0 : 0.8,
-                    // Add dash pattern for focused boat to make it stand out more
-                    dashArray: isFocused ? undefined : undefined,
+                    opacity: isFocused ? 1.0 : 0.85,
                     lineCap: 'round',
                     lineJoin: 'round',
                   }}
                 />
+              </>
             ) : null}
 
             {/* Current position marker (oriented boat icon) */}
@@ -946,7 +989,7 @@ const ReplayMapContent = memo(function ReplayMapContent({
                 onFocus={handleBoatFocus}
               />
             )}
-          </div>
+          </Fragment>
         );
       })}
 

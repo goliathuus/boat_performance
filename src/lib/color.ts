@@ -1,51 +1,63 @@
 /**
- * Ultra high-contrast palette for boat traces.
- * Ordered so first boats are immediately distinguishable at a glance.
+ * Palette d'identite de flotte.
+ *
+ * Huit teintes, ordre fixe, attribuees dans l'ordre. L'ordre EST le mecanisme
+ * de securite daltonisme : il ne se reorganise pas.
+ *
+ * Validee contre #d0cfd4, le gris reel des tuiles Esri World Light Gray sur
+ * lesquelles les traces sont dessinees (et non contre du blanc). Les traces
+ * vivent sur la carte, dont la surface ne change pas avec le theme de l'UI :
+ * il n'y a donc pas de variante sombre de ces couleurs.
+ *
+ * Limite connue : sur une carte, deux traces quelconques peuvent se croiser,
+ * donc chaque paire compte. A ce test, la couleur seule ne separe que TROIS
+ * bateaux. Au-dela, l'identite est portee par l'etiquette de nom en tete de
+ * trace et par l'isolation au survol -- pas par la teinte.
  */
-const HIGH_CONTRAST_COLORS = [
-  '#0057ff', // vivid blue
-  '#00a651', // vivid green
-  '#ff1f1f', // vivid red
-  '#ff2fa3', // vivid pink
-  '#8b4513', // brown
-  '#00c8ff', // cyan
-  '#ffd400', // yellow
-  '#7a00ff', // purple
-  '#ff7a00', // orange
-  '#1a1a1a', // black
-  '#9cff00', // lime
-  '#00ffd5', // turquoise
-  '#ff004d', // rose red
-  '#6a4c93', // deep violet
-  '#3d5a40', // dark green
+const FLEET_COLORS = [
+  '#2a78d6', // 01 bleu
+  '#eb6834', // 02 orange
+  '#1baf7a', // 03 aqua
+  '#eda100', // 04 jaune
+  '#e87ba4', // 05 magenta
+  '#008300', // 06 vert
+  '#4a3aa7', // 07 violet
+  '#e34948', // 08 rouge
 ];
 
 /**
- * Generate a distinct color for a boat.
- * - If usedColors are provided, prefers the first unused high-contrast color.
- * - Otherwise uses a deterministic hash for stable color assignment.
+ * Liseré blanc pose sous chaque trace.
+ *
+ * Six des huit teintes passent sous 3:1 contre le gris de la carte. Le casing
+ * les rattrape et demele les croisements de traces.
  */
-export function generateBoatColor(
-  boatId: string,
-  _saturation = 70,
-  _lightness = 50,
-  usedColors: string[] = []
-): string {
-  // Prefer sequential first-unused color to maximize contrast within the current replay.
+export const TRACK_CASING_COLOR = '#ffffff';
+
+/**
+ * Attribue une couleur a un bateau.
+ *
+ * Prend la premiere teinte encore libre pour maximiser le contraste au sein
+ * du replay courant. La couleur est ensuite stockee sur la session, donc
+ * masquer ou filtrer un bateau ne repeint jamais les autres.
+ *
+ * Au-dela de huit bateaux les teintes se repetent : c'est assume, parce que
+ * l'etiquette de nom porte deja l'identite bien avant ce seuil.
+ */
+export function generateBoatColor(boatId: string, usedColors: string[] = []): string {
   const usedSet = new Set(usedColors.map((c) => c.toLowerCase()));
-  for (const color of HIGH_CONTRAST_COLORS) {
+  for (const color of FLEET_COLORS) {
     if (!usedSet.has(color.toLowerCase())) {
       return color;
     }
   }
 
-  // Fallback for very large fleets: deterministic hash index.
+  // Flotte plus large que la palette : index deterministe, stable pour un meme id.
   let hash = 0;
   for (let i = 0; i < boatId.length; i++) {
     hash = ((hash << 5) - hash) + boatId.charCodeAt(i);
     hash = hash & hash;
   }
-  return HIGH_CONTRAST_COLORS[Math.abs(hash) % HIGH_CONTRAST_COLORS.length];
+  return FLEET_COLORS[Math.abs(hash) % FLEET_COLORS.length];
 }
 
 /**
@@ -65,58 +77,47 @@ export function hslToHex(h: number, s: number, l: number): string {
 }
 
 /**
- * Get color based on SOG (Speed Over Ground) value
- * Échelle: bleu (lent) → vert → jaune → orange → rouge (rapide)
- * @param sog Speed Over Ground in knots
- * @param minSog Minimum SOG in dataset (for normalization)
- * @param maxSog Maximum SOG in dataset (for normalization)
- * @returns Hex color string
+ * Rampe sequentielle de vitesse : une seule teinte, clair vers fonce.
+ *
+ * Remplace l'ancien arc-en-ciel, qui n'etait pas monotone, emettait des
+ * composantes hors bornes et aplatissait les 20 % superieurs de la plage.
+ *
+ * Exclusive de la couleur d'identite : une trace porte la couleur de son
+ * bateau OU sa vitesse, jamais les deux -- la rampe est bleue et entrerait
+ * sinon en collision avec le slot 01.
+ */
+const SPEED_RAMP = [
+  '#86b6ef',
+  '#6da7ec',
+  '#5598e7',
+  '#3987e5',
+  '#2a78d6',
+  '#256abf',
+  '#1c5cab',
+  '#184f95',
+  '#104281',
+  '#0d366b',
+];
+
+/**
+ * Couleur d'une vitesse fond (SOG) sur la rampe sequentielle.
+ *
+ * @param sog Speed Over Ground, en noeuds
+ * @param minSog Borne basse de la plage
+ * @param maxSog Borne haute de la plage
  */
 export function getSogColor(sog: number, minSog: number, maxSog: number): string {
-  if (minSog === maxSog) {
-    // All boats at same speed, return middle color (yellow)
-    return '#FFD700';
+  if (!Number.isFinite(sog) || maxSog <= minSog) {
+    return SPEED_RAMP[Math.floor(SPEED_RAMP.length / 2)];
   }
 
-  // Normalize SOG to 0-1 range
   const normalized = (sog - minSog) / (maxSog - minSog);
   const clamped = Math.max(0, Math.min(1, normalized));
+  const index = Math.min(SPEED_RAMP.length - 1, Math.floor(clamped * SPEED_RAMP.length));
+  return SPEED_RAMP[index];
+}
 
-  // Color stops: bleu → cyan → vert → jaune → orange → rouge
-  if (clamped < 0.2) {
-    // 0-0.2: bleu → cyan
-    const t = clamped / 0.2;
-    const r = Math.round(0 + (0 * t));
-    const g = Math.round(100 + (255 * t));
-    const b = Math.round(255 + (255 * (1 - t)));
-    return `rgb(${r}, ${g}, ${b})`;
-  } else if (clamped < 0.4) {
-    // 0.2-0.4: cyan → vert
-    const t = (clamped - 0.2) / 0.2;
-    const r = Math.round(0 + (0 * t));
-    const g = 255;
-    const b = Math.round(255 + (0 * (1 - t)));
-    return `rgb(${r}, ${g}, ${b})`;
-  } else if (clamped < 0.6) {
-    // 0.4-0.6: vert → jaune
-    const t = (clamped - 0.4) / 0.2;
-    const r = Math.round(0 + (255 * t));
-    const g = 255;
-    const b = 0;
-    return `rgb(${r}, ${g}, ${b})`;
-  } else if (clamped < 0.8) {
-    // 0.6-0.8: jaune → orange
-    const t = (clamped - 0.6) / 0.2;
-    const r = 255;
-    const g = Math.round(255 + (165 * (1 - t)));
-    const b = 0;
-    return `rgb(${r}, ${g}, ${b})`;
-  } else {
-    // 0.8-1.0: orange → rouge
-    const t = (clamped - 0.8) / 0.2;
-    const r = 255;
-    const g = Math.round(165 + (0 * (1 - t)));
-    const b = 0;
-    return `rgb(${r}, ${g}, ${b})`;
-  }
+/** Les paliers de la rampe de vitesse, du plus lent au plus rapide (pour la legende). */
+export function getSpeedRampStops(): readonly string[] {
+  return SPEED_RAMP;
 }

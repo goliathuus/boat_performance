@@ -12,13 +12,6 @@ import { Button } from '@/components/ui/button';
 import { usePublicEvent } from '@/hooks/usePublicEvent';
 import { usePublicTelemetry } from '@/hooks/usePublicTelemetry';
 import type { Crossing, Gate, Result } from '@/types';
-import { CourseDetectSheet } from '@/components/replay/CourseDetectSheet';
-import {
-  detectRoundingMarksFromSessions,
-  excludeNearConfirmed,
-  type ConfirmedCourseBuoy,
-  type InferredMarkCandidate,
-} from '@/lib/inferredMarks';
 
 // La vue 3D tire three.js, drei et un modele GLB de ~21 Mo : chargee a la demande
 // pour ne pas peser sur le premier rendu de la carte.
@@ -37,7 +30,6 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
   const setSelectedSessions = useReplayStore((state) => state.setSelectedSessions);
   const sessions = useReplayStore((state) => state.sessions);
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
-  const hiddenSessionIds = useReplayStore((state) => state.hiddenSessionIds);
   const globalTMin = useReplayStore((state) => state.globalTMin);
   const globalTMax = useReplayStore((state) => state.globalTMax);
   const speed = useReplayStore((state) => state.speed);
@@ -45,9 +37,6 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [openWidgets, setOpenWidgets] = useState<Set<string>>(new Set());
   const [replayViewMode, setReplayViewMode] = useState<'2d' | '3d'>('2d');
-  const [courseDetectOpen, setCourseDetectOpen] = useState(false);
-  const [courseCandidates, setCourseCandidates] = useState<InferredMarkCandidate[]>([]);
-  const [courseConfirmed, setCourseConfirmed] = useState<ConfirmedCourseBuoy[]>([]);
   const [gateStart, setGateStart] = useState<Gate | null>(null);
   const [gateFinish, setGateFinish] = useState<Gate | null>(null);
   const [gateDrawMode, setGateDrawMode] = useState<'none' | 'drawStart' | 'drawFinish'>('none');
@@ -108,30 +97,6 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
 
   const handleMapReady = useCallback((centerOnBoat: (sessionId: string, currentTime: number) => void) => {
     centerOnBoatRef.current = centerOnBoat;
-  }, []);
-
-  const runCourseDetection = useCallback(() => {
-    const visibleIds = selectedSessionIds.filter((id) => !hiddenSessionIds.has(id));
-    const raw = detectRoundingMarksFromSessions(sessions, visibleIds);
-    setCourseCandidates(excludeNearConfirmed(raw, courseConfirmed));
-    setCourseDetectOpen(true);
-  }, [selectedSessionIds, hiddenSessionIds, sessions, courseConfirmed]);
-
-  const handleConfirmCourseCandidate = useCallback((id: string) => {
-    setCourseCandidates((prev) => {
-      const c = prev.find((x) => x.id === id);
-      if (!c) return prev;
-      setCourseConfirmed((conf) => [...conf, { id: crypto.randomUUID(), lat: c.lat, lon: c.lon }]);
-      return prev.filter((x) => x.id !== id);
-    });
-  }, []);
-
-  const handleRejectCourseCandidate = useCallback((id: string) => {
-    setCourseCandidates((prev) => prev.filter((x) => x.id !== id));
-  }, []);
-
-  const handleClearConfirmedBuoys = useCallback(() => {
-    setCourseConfirmed([]);
   }, []);
 
   if (loadingEvent) {
@@ -231,26 +196,7 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
             <span className="sm:hidden">3D</span><span className="hidden sm:inline">Vue 3D</span>
           </Button>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          title="Détecter des bouées probables depuis les virages GPS"
-          onClick={runCourseDetection}
-        >
-          <span className="sm:hidden">Parcours</span><span className="hidden sm:inline">Parcours (GPS)</span>
-        </Button>
       </div>
-
-      <CourseDetectSheet
-        open={courseDetectOpen}
-        onOpenChange={setCourseDetectOpen}
-        candidates={courseCandidates}
-        confirmed={courseConfirmed}
-        onConfirmCandidate={handleConfirmCourseCandidate}
-        onRejectCandidate={handleRejectCourseCandidate}
-        onClearConfirmed={handleClearConfirmedBuoys}
-      />
 
       <div className="flex-1 relative">
         <ToolsPanel
@@ -297,8 +243,6 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
             onSetRankings={setRankings}
             onSetCrossingsByBoat={setCrossingsByBoat}
             onSetSelectedBoatId={setSelectedBoatId}
-            courseBuoyCandidates={courseCandidates}
-            courseBuoysConfirmed={courseConfirmed}
           />
         ) : (
           <Suspense fallback={<div className="w-full h-full flex items-center justify-center"><LoadingSpinner /></div>}>

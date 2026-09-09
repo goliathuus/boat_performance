@@ -436,10 +436,10 @@ export function LeafletMap({
   // Compute bounds for all boats
   const bounds = useMemo(() => computeBounds(filteredBoats), [filteredBoats]);
 
-  // Carto Positron tile layer (clean, light style similar to Windy)
-  const tileUrl = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-  const attribution =
-    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+  // Fond clair Esri World Light Gray : style neutre proche de Carto Positron,
+  // sans cle d'API, pour que les traces colorees restent lisibles par-dessus.
+  const tileUrl = 'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}';
+  const attribution = 'Tiles &copy; <a href="https://www.esri.com/">Esri</a> &mdash; Esri, DeLorme, NAVTEQ';
 
   return (
     <div className="w-full h-full">

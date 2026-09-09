@@ -49,16 +49,8 @@ export function useTelemetry(): UseTelemetryResult {
 
   // Main effect: Load session metadata and telemetry
   useEffect(() => {
-    console.log('[useTelemetry] Effect triggered', {
-      selectedSessionIds: selectedSessionIds.length,
-      sessionsSize,
-      sessionsKeys,
-      selectedIds: selectedSessionIds,
-      storeSessionIds: Array.from(sessions.keys()),
-    });
 
     if (selectedSessionIds.length === 0) {
-      console.log('[useTelemetry] No sessions selected, returning');
       setLoading(false);
       return;
     }
@@ -68,15 +60,8 @@ export function useTelemetry(): UseTelemetryResult {
       (id) => !sessions.has(id) && !loadedSessionsRef.current.has(id)
     );
 
-    console.log('[useTelemetry] Sessions analysis', {
-      selectedCount: selectedSessionIds.length,
-      inStore: selectedSessionIds.filter(id => sessions.has(id)).length,
-      needMetadata: sessionsToLoadMetadata.length,
-      sessionsToLoadMetadata,
-    });
 
     if (sessionsToLoadMetadata.length > 0) {
-      console.log('[useTelemetry] Loading metadata for sessions', sessionsToLoadMetadata);
       
       const loadMetadata = async () => {
         try {
@@ -86,7 +71,6 @@ export function useTelemetry(): UseTelemetryResult {
             return;
           }
 
-          console.log('[useTelemetry] Fetching session metadata from DB');
           // Load sessions with their events if they have event_id
           const { data: sessionsData, error: sessionsError } = await supabase
             .from('sessions')
@@ -107,10 +91,6 @@ export function useTelemetry(): UseTelemetryResult {
             return;
           }
 
-          console.log('[useTelemetry] Metadata loaded', {
-            count: sessionsData.length,
-            sessions: sessionsData.map(s => ({ id: s.id, name: s.name })),
-          });
 
           // Process sessions and determine ended_at
           const sessionsToAdd = await Promise.all(
@@ -139,9 +119,7 @@ export function useTelemetry(): UseTelemetryResult {
             })
           );
 
-          console.log('[useTelemetry] Adding sessions to store', sessionsToAdd.length);
           addSessions(sessionsToAdd);
-          console.log('[useTelemetry] Sessions added to store');
         } catch (err) {
           console.error('[useTelemetry] Error loading session metadata:', err);
         }
@@ -157,20 +135,11 @@ export function useTelemetry(): UseTelemetryResult {
       (id) => sessions.has(id) && !telemetryLoadedRef.current.has(id)
     );
 
-    console.log('[useTelemetry] Telemetry analysis', {
-      selectedCount: selectedSessionIds.length,
-      inStore: selectedSessionIds.filter(id => sessions.has(id)).length,
-      needTelemetry: sessionsToLoadTelemetry.length,
-      sessionsToLoadTelemetry,
-      alreadyLoaded: Array.from(telemetryLoadedRef.current),
-    });
 
     if (sessionsToLoadTelemetry.length === 0) {
-      console.log('[useTelemetry] No telemetry to load - all sessions already loaded or not in store');
       return;
     }
 
-    console.log('[useTelemetry] Starting telemetry load for', sessionsToLoadTelemetry.length, 'sessions');
     setLoading(true);
     setError(null);
 
@@ -182,7 +151,6 @@ export function useTelemetry(): UseTelemetryResult {
 
     const loadTelemetry = async () => {
       try {
-        console.log('[useTelemetry] Loading telemetry in parallel for', sessionsToLoadTelemetry);
         
         // Load telemetry for all sessions in parallel
         const results = await Promise.allSettled(
@@ -192,11 +160,6 @@ export function useTelemetry(): UseTelemetryResult {
               throw new Error(`Session ${sessionId} not found in store`);
             }
 
-            console.log('[useTelemetry] Loading telemetry for session', sessionId, {
-              tMin: session.tMin,
-              tMax: session.tMax,
-              name: session.name,
-            });
 
             // Use the tMin/tMax from store (which should now be correctly calculated)
             const sessionStartsAt = new Date(session.tMin);
@@ -210,9 +173,6 @@ export function useTelemetry(): UseTelemetryResult {
               sessionEndsAt
             );
 
-            console.log('[useTelemetry] Telemetry loaded for session', sessionId, {
-              pointsCount: points.length,
-            });
 
             if (abortControllerRef.current?.signal.aborted) {
               throw new Error('Request aborted');
@@ -247,15 +207,9 @@ export function useTelemetry(): UseTelemetryResult {
           }
         });
 
-        console.log('[useTelemetry] Telemetry load results', {
-          successful: successful.length,
-          failed: failed.length,
-          total: results.length,
-        });
 
         // Update store with successful loads
         if (successful.length > 0) {
-          console.log('[useTelemetry] Updating store with', successful.length, 'sessions');
           
           // Sort points by time and recompute SOG/COG before updating
           const sortedSuccessful = successful.map(({ sessionId, points }) => {
@@ -296,10 +250,6 @@ export function useTelemetry(): UseTelemetryResult {
             }
           });
 
-          console.log('[useTelemetry] Global time range updated', {
-            globalTMin: finalGlobalTMin === Infinity ? null : finalGlobalTMin,
-            globalTMax: finalGlobalTMax === -Infinity ? null : finalGlobalTMax,
-          });
 
           if (finalGlobalTMin !== Infinity && finalGlobalTMax !== -Infinity) {
             useReplayStore.setState({
@@ -315,7 +265,6 @@ export function useTelemetry(): UseTelemetryResult {
         }
 
         setLoading(false);
-        console.log('[useTelemetry] Telemetry loading complete');
       } catch (err) {
         if (!abortControllerRef.current?.signal.aborted) {
           console.error('[useTelemetry] Unexpected error:', err);

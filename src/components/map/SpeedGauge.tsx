@@ -17,22 +17,26 @@ export const SpeedGauge = memo(function SpeedGauge({
   showAverage30s = false,
   height = 120,
 }: SpeedGaugeProps) {
-  if (currentTime === null) {
-    return null;
-  }
-
   // Get current SOG using interpolatePosition (memoized)
   const currentPos = useMemo(
-    () => interpolatePosition(boat, currentTime),
+    () => (currentTime === null ? null : interpolatePosition(boat, currentTime)),
     [boat, currentTime]
   );
   const sog = currentPos?.point?.sog ?? null;
 
   // Calculate 30s average if requested (memoized)
   const avg30s = useMemo(
-    () => (showAverage30s ? calculateAverageSOG(boat, currentTime, 30) : null),
+    () =>
+      showAverage30s && currentTime !== null
+        ? calculateAverageSOG(boat, currentTime, 30)
+        : null,
     [showAverage30s, boat, currentTime]
   );
+
+  // Les hooks doivent tourner a chaque rendu : la garde vient apres eux.
+  if (currentTime === null) {
+    return null;
+  }
 
   const normalizedSpeed =
     sog !== null

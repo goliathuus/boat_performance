@@ -102,11 +102,8 @@ export function interpolatePosition(
       if (t < boat.points[0].t) return null;
       if (t > boat.points[boat.points.length - 1].t) return null;
 
-      let comparisons = 0;
-
       // Find the two points to interpolate between
       for (let i = 0; i < boat.points.length - 1; i++) {
-        comparisons++;
         const p1 = boat.points[i];
         const p2 = boat.points[i + 1];
 

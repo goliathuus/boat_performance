@@ -283,7 +283,6 @@ const BoatTrackRenderer = memo(function BoatTrackRenderer({
       'calculateSegments',
       () => {
         if (pointsToDraw.length < 2) {
-          console.log('[BoatTrackRenderer] Not enough points to draw:', pointsToDraw.length);
           return [];
         }
         
@@ -298,19 +297,6 @@ const BoatTrackRenderer = memo(function BoatTrackRenderer({
           positions.push([p.lat, p.lon, sog]);
         }
         
-        console.log('[BoatTrackRenderer] Prepared hotline positions:', {
-          boatId: boat.id,
-          boatName: boat.name,
-          positionsCount: positions.length,
-          pointsToDrawCount: pointsToDraw.length,
-          decimationFactor,
-          firstPosition: positions[0],
-          lastPosition: positions[positions.length - 1],
-          sogRange: {
-            min: Math.min(...positions.map(p => p[2])),
-            max: Math.max(...positions.map(p => p[2])),
-          },
-        });
         
         // Record metric
         if (profiler.isEnabled()) {
@@ -344,20 +330,12 @@ const BoatTrackRenderer = memo(function BoatTrackRenderer({
     <>
       {/* Hotline track with gradient color based on SOG */}
       {hotlinePositions.length >= 2 && (
-        <>
-          {console.log('[BoatTrackRenderer] Rendering HotlineTrack', {
-            boatId: boat.id,
-            positionsCount: hotlinePositions.length,
-            min: sogRange.min,
-            max: sogRange.max,
-          })}
-          <HotlineTrack
-            positions={hotlinePositions}
-            min={sogRange.min}
-            max={sogRange.max}
-            weight={2}
-          />
-        </>
+        <HotlineTrack
+          positions={hotlinePositions}
+          min={sogRange.min}
+          max={sogRange.max}
+          weight={2}
+        />
       )}
 
       {/* TWD Arrow */}

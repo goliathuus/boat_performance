@@ -15,7 +15,7 @@ export async function determineSessionEndTime(
 ): Promise<number> {
   const tMin = new Date(startedAt).getTime();
 
-  let sessionEnd: number | null = endedAt ? new Date(endedAt).getTime() : null;
+  const sessionEnd: number | null = endedAt ? new Date(endedAt).getTime() : null;
   let eventEnd: number | null = null;
   let telemetryEnd: number | null = null;
 

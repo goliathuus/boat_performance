@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { useReplayStore } from '@/state/useReplayStore';
 import { useReplayClock } from '@/hooks/useReplayClock';
 import { ReplayMapWithData } from '@/components/replay/ReplayMap';
@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { usePublicEvent } from '@/hooks/usePublicEvent';
 import { usePublicTelemetry } from '@/hooks/usePublicTelemetry';
 import type { Crossing, Gate, Result } from '@/types';
-import { Replay3DView } from '@/views/Replay3DView';
 import { CourseDetectSheet } from '@/components/replay/CourseDetectSheet';
 import {
   detectRoundingMarksFromSessions,
@@ -20,6 +19,12 @@ import {
   type ConfirmedCourseBuoy,
   type InferredMarkCandidate,
 } from '@/lib/inferredMarks';
+
+// La vue 3D tire three.js, drei et un modele GLB de ~21 Mo : chargee a la demande
+// pour ne pas peser sur le premier rendu de la carte.
+const Replay3DView = lazy(() =>
+  import('@/views/Replay3DView').then((m) => ({ default: m.Replay3DView }))
+);
 
 interface PublicEventPageProps {
   token: string;
@@ -296,7 +301,9 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
             courseBuoysConfirmed={courseConfirmed}
           />
         ) : (
-          <Replay3DView currentTime={clock.currentTime} />
+          <Suspense fallback={<div className="w-full h-full flex items-center justify-center"><LoadingSpinner /></div>}>
+            <Replay3DView currentTime={clock.currentTime} />
+          </Suspense>
         )}
         <BoatListWidget
           currentTime={clock.currentTime}

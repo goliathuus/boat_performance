@@ -71,7 +71,6 @@ export function useEvents(): UseEventsResult {
         }
       } catch (rpcErr) {
         // RPC not available or failed, fall back to direct query
-        console.log('RPC admin_get_events not available, using direct query');
       }
 
       // Fallback: Direct query (no filter - RLS policies will handle access control)

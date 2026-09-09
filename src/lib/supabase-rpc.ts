@@ -11,15 +11,6 @@ export async function getTelemetryBucketed(
   endTs: Date,
   bucketSeconds: number = 10
 ): Promise<TrackPoint[]> {
-  // Log parameters before calling RPC
-  console.log('[getTelemetryBucketed] Calling RPC with params', {
-    sessionId,
-    startTs: startTs.toISOString(),
-    endTs: endTs.toISOString(),
-    bucketSeconds,
-    startTsValid: !isNaN(startTs.getTime()),
-    endTsValid: !isNaN(endTs.getTime()),
-  });
 
   const { data, error } = await supabase.rpc('get_telemetry_bucketed', {
     p_session_id: sessionId,
@@ -69,16 +60,6 @@ export async function getTelemetryWindow(
   endTs: Date,
   maxPoints: number = 20000
 ): Promise<TrackPoint[]> {
-  // Log parameters before calling RPC
-  console.log('[getTelemetryWindow] Calling RPC with params', {
-    sessionId,
-    startTs: startTs.toISOString(),
-    endTs: endTs.toISOString(),
-    maxPoints,
-    startTsValid: !isNaN(startTs.getTime()),
-    endTsValid: !isNaN(endTs.getTime()),
-    timeRange: endTs.getTime() - startTs.getTime(),
-  });
 
   const { data, error } = await supabase.rpc('get_telemetry_window', {
     p_session_id: sessionId,
@@ -231,7 +212,6 @@ export async function getTelemetryAll(
   const allPoints: TrackPoint[] = [];
   let lastTs: Date | undefined;
   let hasMore = true;
-  let page = 0;
 
   while (hasMore) {
     const { points, hasMore: more, lastTimestamp } = await getTelemetryKeyset(
@@ -249,18 +229,9 @@ export async function getTelemetryAll(
     allPoints.push(...points);
     hasMore = more;
     lastTs = lastTimestamp ?? undefined;
-    page += 1;
 
     if (!lastTs) {
       break;
-    }
-
-    if (page % 10 === 0) {
-      console.log('[getTelemetryAll] Loaded pages', {
-        sessionId,
-        pages: page,
-        points: allPoints.length,
-      });
     }
   }
 

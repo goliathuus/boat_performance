@@ -15,5 +15,16 @@ module.exports = {
       { allowConstantExport: true },
     ],
     '@typescript-eslint/no-explicit-any': 'warn',
+    // Le préfixe `_` marque un binding volontairement inutilisé (prop conservée
+    // pour la signature, paramètre ignoré, ancienne variable gardée en place).
+    '@typescript-eslint/no-unused-vars': [
+      'error',
+      {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+        destructuredArrayIgnorePattern: '^_',
+      },
+    ],
   },
 }

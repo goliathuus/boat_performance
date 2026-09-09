@@ -67,6 +67,12 @@
   * {
     @apply border-border;
   }
+  html {
+    /* Sans ca, iOS et Android gonflent les polices dans certaines mises en
+       page : le rendu parait zoome sans que rien n'ait change. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
   body {
     @apply bg-background text-foreground;
     margin: 0;
@@ -173,4 +179,24 @@
 
 .animate-gradient {
   animation: gradient 15s ease infinite;
+}
+/*
+ * Hauteur d'ecran fiable sur mobile.
+ *
+ * 100vh ignore la barre d'adresse du navigateur : la barre de controles,
+ * donc le curseur de lecture, se retrouvait poussee sous l'interface du
+ * navigateur. 100dvh suit la zone reellement visible ; la premiere
+ * declaration reste le repli pour les navigateurs qui l'ignorent.
+ */
+.app-shell {
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* Marges de securite des ecrans a encoche / barre gestuelle. */
+.safe-bottom {
+  padding-bottom: max(0px, env(safe-area-inset-bottom));
+}
+.safe-top {
+  padding-top: max(0px, env(safe-area-inset-top));
 }

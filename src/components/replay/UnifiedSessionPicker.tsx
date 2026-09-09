@@ -223,7 +223,7 @@ export function UnifiedSessionPicker({
   };
 
   return (
-    <div className="w-screen h-screen overflow-hidden flex flex-col bg-background">
+    <div className="w-screen app-shell overflow-hidden flex flex-col bg-background">
       {/* Header with tabs */}
       <div className="border-b p-3 sm:p-4">
         <div className="flex flex-col gap-3 mb-3 sm:mb-4 sm:flex-row sm:items-center sm:justify-between">

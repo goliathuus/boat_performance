@@ -215,14 +215,14 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
   if (checkingSession) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700">
+      <div className="w-screen app-shell flex items-center justify-center bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700">
         <div className="text-lg text-white">Checking session...</div>
       </div>
     );
   }
 
   return (
-    <div className="w-screen h-screen flex flex-col md:flex-row overflow-hidden relative">
+    <div className="w-screen app-shell flex flex-col md:flex-row overflow-hidden relative">
       {/* Animated Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-blue-600 to-blue-800 animate-gradient" style={{ backgroundSize: '200% 200%' }} />
       

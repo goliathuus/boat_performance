@@ -166,7 +166,7 @@ function AuthenticatedApp() {
   // Show loading while checking auth
   if (isCheckingAuth) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center bg-background">
+      <div className="w-screen app-shell flex items-center justify-center bg-background">
         <div className="text-lg">Checking authentication...</div>
       </div>
     );

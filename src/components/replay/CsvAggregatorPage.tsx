@@ -175,7 +175,7 @@ export function CsvAggregatorPage({ onBack, onLogout }: CsvAggregatorPageProps) 
   };
 
   return (
-    <div className="w-screen h-screen overflow-hidden flex flex-col bg-background">
+    <div className="w-screen app-shell overflow-hidden flex flex-col bg-background">
       <div className="border-b p-4">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">

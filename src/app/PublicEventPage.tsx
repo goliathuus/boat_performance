@@ -8,6 +8,7 @@ import { GateRankingWidget } from '@/components/replay/GateRankingWidget';
 import { ReplayControls } from '@/components/replay/ReplayControls';
 import { ToolsPanel } from '@/components/replay/ToolsPanel';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { FullscreenButton } from '@/components/replay/FullscreenButton';
 import { Button } from '@/components/ui/button';
 import { usePublicEvent } from '@/hooks/usePublicEvent';
 import { usePublicTelemetry } from '@/hooks/usePublicTelemetry';
@@ -101,7 +102,7 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
 
   if (loadingEvent) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center bg-background">
+      <div className="w-screen app-shell flex items-center justify-center bg-background">
         <LoadingSpinner size="lg" text="Loading public event..." />
       </div>
     );
@@ -109,7 +110,7 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
 
   if (eventError || !event) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center bg-background">
+      <div className="w-screen app-shell flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="text-xl font-semibold mb-2">Public link unavailable</div>
           <div className="text-sm text-muted-foreground">
@@ -122,7 +123,7 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
 
   if (telemetryError) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center bg-background">
+      <div className="w-screen app-shell flex items-center justify-center bg-background">
         <div className="text-sm text-destructive">{telemetryError.message}</div>
       </div>
     );
@@ -135,7 +136,7 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
 
   if (!loadingTelemetry && selectedCount === 0) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center bg-background">
+      <div className="w-screen app-shell flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="text-xl font-semibold mb-2">No public sessions yet</div>
           <div className="text-sm text-muted-foreground">
@@ -148,7 +149,7 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
 
   if (!loadingTelemetry && selectedCount > 0 && !hasAnyTelemetryPoints) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center bg-background">
+      <div className="w-screen app-shell flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="text-xl font-semibold mb-2">No telemetry available</div>
           <div className="text-sm text-muted-foreground">
@@ -161,14 +162,14 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
 
   if (loadingTelemetry || globalTMin === null || globalTMax === null) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center bg-background">
+      <div className="w-screen app-shell flex items-center justify-center bg-background">
         <LoadingSpinner size="lg" text="Loading telemetry..." />
       </div>
     );
   }
 
   return (
-    <div className="w-screen h-screen overflow-hidden flex flex-col">
+    <div className="w-screen app-shell overflow-hidden flex flex-col">
       <div className="absolute top-2 left-12 right-[4.75rem] sm:top-4 sm:left-16 sm:right-auto sm:max-w-[calc(100%-4rem-14rem)] z-[1000] flex flex-wrap items-center gap-2 sm:gap-3 bg-background/90 backdrop-blur-sm border rounded-md px-2.5 py-1.5 sm:px-3 sm:py-2">
         <div className="min-w-0">
           <div className="font-semibold truncate">{event.title}</div>
@@ -196,6 +197,7 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
             <span className="sm:hidden">3D</span><span className="hidden sm:inline">Vue 3D</span>
           </Button>
         </div>
+        <FullscreenButton />
       </div>
 
       <div className="flex-1 relative">

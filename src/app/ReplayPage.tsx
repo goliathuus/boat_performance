@@ -12,6 +12,7 @@ import { ToolsPanel } from '@/components/replay/ToolsPanel';
 import { useTelemetry } from '@/hooks/useTelemetry';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { FullscreenButton } from '@/components/replay/FullscreenButton';
 import { exportSessionsToCSV } from '@/lib/csv-export';
 import { downloadCSV, generateCSVFilename } from '@/lib/csv-download';
 
@@ -127,7 +128,7 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
 
   if (selectedSessionIds.length === 0) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center">
+      <div className="w-screen app-shell flex items-center justify-center">
         <div className="text-center">
           <div className="text-lg mb-4">Aucune session sélectionnée</div>
           <Button onClick={onBack}>Retour</Button>
@@ -141,14 +142,14 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
   // 2. Global time range is not set yet (which means sessions aren't ready)
   if (loading || globalTMin === null || globalTMax === null) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center bg-background">
+      <div className="w-screen app-shell flex items-center justify-center bg-background">
         <LoadingSpinner size="lg" text="Chargement des données de télémétrie..." />
       </div>
     );
   }
 
   return (
-    <div className="w-screen h-screen overflow-hidden flex flex-col">
+    <div className="w-screen app-shell overflow-hidden flex flex-col">
       {/* Map */}
       <div className="flex-1 relative">
         {/* Tools Panel - left side */}
@@ -286,10 +287,11 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
             size="sm"
             onClick={handleExportCSV}
             disabled={isExporting || selectedSessionIds.length === 0}
-            title="Export all sessions to CSV"
+            title="Exporter toutes les sessions en CSV"
           >
             {isExporting ? 'Export…' : 'Exporter en CSV'}
           </Button>
+          <FullscreenButton />
           <CsvImportButton />
           {onOpenCsvAgg && (
             <Button variant="outline" size="sm" onClick={onOpenCsvAgg}>

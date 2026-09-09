@@ -90,7 +90,7 @@ export function AdminSessionsPage({ onBack, onReplay, onReplayMultiple, onLogout
   };
 
   return (
-    <div className="w-screen h-screen overflow-hidden flex flex-col bg-background">
+    <div className="w-screen app-shell overflow-hidden flex flex-col bg-background">
       {/* Header */}
       <div className="border-b p-4 flex items-center justify-between">
         <div>

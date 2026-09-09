@@ -204,10 +204,10 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
 
   return (
     <div className="w-screen h-screen overflow-hidden flex flex-col">
-      <div className="absolute top-4 left-16 z-[1000] flex flex-wrap items-center gap-3 bg-background/90 border rounded-md px-3 py-2">
-        <div>
-          <div className="font-semibold">{event.title}</div>
-          <div className="text-xs text-muted-foreground">
+      <div className="absolute top-2 left-12 right-[4.75rem] sm:top-4 sm:left-16 sm:right-auto sm:max-w-[calc(100%-4rem-14rem)] z-[1000] flex flex-wrap items-center gap-2 sm:gap-3 bg-background/90 backdrop-blur-sm border rounded-md px-2.5 py-1.5 sm:px-3 sm:py-2">
+        <div className="min-w-0">
+          <div className="font-semibold truncate">{event.title}</div>
+          <div className="text-xs text-muted-foreground truncate">
             {event.starts_at ? new Date(event.starts_at).toLocaleString() : 'N/A'} - {event.ends_at ? new Date(event.ends_at).toLocaleString() : 'N/A'}
           </div>
         </div>
@@ -219,7 +219,7 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
             className="h-8 px-3"
             onClick={() => setReplayViewMode('2d')}
           >
-            Vue 2D
+            <span className="sm:hidden">2D</span><span className="hidden sm:inline">Vue 2D</span>
           </Button>
           <Button
             type="button"
@@ -228,7 +228,7 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
             className="h-8 px-3"
             onClick={() => setReplayViewMode('3d')}
           >
-            Vue 3D
+            <span className="sm:hidden">3D</span><span className="hidden sm:inline">Vue 3D</span>
           </Button>
         </div>
         <Button
@@ -238,7 +238,7 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
           title="Détecter des bouées probables depuis les virages GPS"
           onClick={runCourseDetection}
         >
-          Parcours (GPS)
+          <span className="sm:hidden">Parcours</span><span className="hidden sm:inline">Parcours (GPS)</span>
         </Button>
       </div>
 
@@ -314,7 +314,7 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
           }}
         />
         {openWidgets.has('boatList') && (
-          <div className="absolute top-0 right-0 z-[1000]" style={{ height: 'calc(100vh - 140px)', bottom: '140px' }}>
+          <div className="absolute inset-y-0 right-0 z-[1000] max-w-full">
             <BoatListPanel
               currentTime={clock.currentTime}
               onCenterBoat={(sessionId) => {
@@ -326,7 +326,7 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
           </div>
         )}
         {openWidgets.has('gateRanking') && (
-          <div className="absolute top-0 right-0 z-[1000]" style={{ height: 'calc(100vh - 140px)', bottom: '140px' }}>
+          <div className="absolute inset-y-0 right-0 z-[1000] max-w-full">
             <GateRankingWidget
               gateStart={gateStart}
               gateFinish={gateFinish}

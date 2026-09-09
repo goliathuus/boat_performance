@@ -39,43 +39,35 @@ export function ReplayControls({ currentTime, setCurrentTime }: ReplayControlsPr
   const currentProgress = ((currentTime - globalTMin) / (globalTMax - globalTMin)) * 100;
 
   return (
-    <div className="bg-background/95 backdrop-blur-sm border-t p-4 relative">
-      {/* Logo en bas à gauche */}
-      <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
-        <img 
-          src="/sh.png" 
-          alt="Sh course au large" 
-          className="h-20 w-auto opacity-80"
+    <div className="bg-background/95 backdrop-blur-sm border-t px-3 py-2.5 sm:px-4 sm:py-3">
+      <div className="flex items-center gap-3 sm:gap-5">
+        <img
+          src="/sh.png"
+          alt="SH Course au large"
+          className="hidden md:block h-12 lg:h-16 w-auto opacity-80 flex-none"
         />
-      </div>
-      <div className="max-w-6xl mx-auto space-y-4">
+        <div className="flex-1 min-w-0 space-y-2 sm:space-y-3">
         {/* Time display and play/pause */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
           <Button
             onClick={() => setPlaying(!playing)}
             variant={playing ? 'default' : 'outline'}
             size="sm"
           >
-            {playing ? '⏸ Pause' : '▶ Play'}
+            {playing ? '❚❚ Pause' : '▶ Lecture'}
           </Button>
 
-          <div className="flex-1">
-            <div className="mb-2 space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground font-medium min-w-[50px]">Start:</span>
-                <span className="text-sm text-blue-500 font-semibold">
-                  {formatTime(windowStartTime)}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground font-medium min-w-[50px]">End:</span>
-                <span className="text-sm text-green-500 font-semibold">
-                  {formatTime(currentTime)}
-                </span>
-                <span className="text-xs text-muted-foreground ml-auto">
-                  Max: {formatTime(globalTMax)}
-                </span>
-              </div>
+          <div className="flex-1 min-w-0">
+            <div className="mb-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-0.5 text-xs tabular-nums">
+              <span className="flex items-baseline gap-1.5">
+                <span className="text-muted-foreground">Début</span>
+                <span className="text-sm font-semibold text-primary">{formatTime(windowStartTime)}</span>
+              </span>
+              <span className="flex items-baseline gap-1.5">
+                <span className="text-muted-foreground">Lecture</span>
+                <span className="text-sm font-semibold text-foreground">{formatTime(currentTime)}</span>
+              </span>
+              <span className="ml-auto text-muted-foreground">Fin {formatTime(globalTMax)}</span>
             </div>
             <RangeSlider
               min={0}
@@ -95,11 +87,11 @@ export function ReplayControls({ currentTime, setCurrentTime }: ReplayControlsPr
 
         {/* Speed controls */}
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Speed:</span>
+          <span className="text-xs sm:text-sm text-muted-foreground">Vitesse</span>
           <Select
             value={currentSpeed.toString()}
             onChange={(e) => setSpeed(Number.parseFloat(e.target.value))}
-            className="w-32"
+            className="w-24 sm:w-32"
           >
             {speedOptions.map((s) => (
               <option key={s} value={s.toString()}>
@@ -107,6 +99,7 @@ export function ReplayControls({ currentTime, setCurrentTime }: ReplayControlsPr
               </option>
             ))}
           </Select>
+        </div>
         </div>
       </div>
     </div>

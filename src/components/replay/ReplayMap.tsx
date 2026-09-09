@@ -15,7 +15,6 @@ import 'leaflet/dist/leaflet.css';
 import { useReplayStore } from '@/state/useReplayStore';
 import type { TrackPoint } from '@/domain/types';
 import type { Gate, Result, Crossing } from '@/types';
-import { TRACK_CASING_COLOR } from '@/lib/color';
 import type { ConfirmedCourseBuoy, InferredMarkCandidate } from '@/lib/inferredMarks';
 import { computeGateRankings, type Vec2 } from '@/lib/gateRanking';
 // Helper to find the last point at or before currentTime
@@ -947,32 +946,16 @@ const ReplayMapContent = memo(function ReplayMapContent({
             {/* Focused session has thicker, more opaque track */}
             {/* Show track even if it has fewer than 2 points (might be loading) */}
             {progressiveTrackPositions.length >= 2 ? (
-              <>
-                {/* Liseré blanc : six des huit teintes de flotte passent sous 3:1
-                    contre le gris de la carte. Le casing les rattrape et démêle
-                    les croisements de traces. */}
-                <Polyline
-                  positions={progressiveTrackPositions}
-                  pathOptions={{
-                    color: TRACK_CASING_COLOR,
-                    weight: isFocused ? 8 : 5,
-                    opacity: 0.9,
-                    lineCap: 'round',
-                    lineJoin: 'round',
-                    interactive: false,
-                  }}
-                />
-                <Polyline
-                  positions={progressiveTrackPositions}
-                  pathOptions={{
-                    color: session.color,
-                    weight: isFocused ? 6 : 3,
-                    opacity: isFocused ? 1.0 : 0.85,
-                    lineCap: 'round',
-                    lineJoin: 'round',
-                  }}
-                />
-              </>
+              <Polyline
+                positions={progressiveTrackPositions}
+                pathOptions={{
+                  color: session.color,
+                  weight: isFocused ? 3 : 1.75,
+                  opacity: isFocused ? 1 : 0.9,
+                  lineCap: 'round',
+                  lineJoin: 'round',
+                }}
+              />
             ) : null}
 
             {/* Current position marker (oriented boat icon) */}

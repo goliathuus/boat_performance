@@ -26,14 +26,6 @@ const FLEET_COLORS = [
 ];
 
 /**
- * Liseré blanc pose sous chaque trace.
- *
- * Six des huit teintes passent sous 3:1 contre le gris de la carte. Le casing
- * les rattrape et demele les croisements de traces.
- */
-export const TRACK_CASING_COLOR = '#ffffff';
-
-/**
  * Attribue une couleur a un bateau.
  *
  * Prend la premiere teinte encore libre pour maximiser le contraste au sein

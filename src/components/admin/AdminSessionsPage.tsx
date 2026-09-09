@@ -104,7 +104,7 @@ export function AdminSessionsPage({ onBack, onReplay, onReplayMultiple, onLogout
             </Button>
           )}
           <Button variant="outline" onClick={onBack}>
-            ← Back to Replay
+            ← Retour au replay
           </Button>
           {onLogout && (
             <Button variant="outline" onClick={onLogout}>
@@ -120,11 +120,11 @@ export function AdminSessionsPage({ onBack, onReplay, onReplayMultiple, onLogout
           <div className="max-w-2xl mx-auto">
             <div className="mb-6">
               <Button variant="outline" onClick={() => setShowCreateForm(false)}>
-                ← Back to Events
+                ← Retour aux événements
               </Button>
             </div>
             <div className="bg-background border rounded-lg p-6">
-              <h2 className="text-xl font-semibold mb-4">Create New Event</h2>
+              <h2 className="text-xl font-semibold mb-4">Créer un événement</h2>
               <CreateEventForm
                 onSuccess={handleCreateSuccess}
                 onCancel={() => setShowCreateForm(false)}

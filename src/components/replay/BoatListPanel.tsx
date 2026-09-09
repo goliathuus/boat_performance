@@ -157,7 +157,7 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
         }}
       >
           <div className="flex items-center justify-between mb-4 flex-shrink-0">
-            <h2 className="text-lg font-semibold">Time Ranking</h2>
+            <h2 className="text-lg font-semibold">Classement au temps</h2>
             <div className="flex items-center gap-2">
               <div className="text-xs text-muted-foreground">
                 {sortedBoats.length} boat{sortedBoats.length !== 1 ? 's' : ''}
@@ -186,7 +186,7 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
           className="flex-1 text-xs h-7"
           title="Sort by average SOG"
         >
-          Avg SOG
+          SOG moyen
         </Button>
         <Button
           variant={sortMode === 'speed' ? 'default' : 'outline'}
@@ -195,7 +195,7 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
           className="flex-1 text-xs h-7"
           title="Sort by instantaneous SOG"
         >
-          Instant SOG
+          SOG instantané
         </Button>
         <Button
           variant={sortMode === 'selection' ? 'default' : 'outline'}

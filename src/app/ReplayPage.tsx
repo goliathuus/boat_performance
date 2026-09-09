@@ -108,7 +108,7 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
 
   const handleExportCSV = async () => {
     if (selectedSessionIds.length === 0) {
-      alert('No sessions selected for export');
+      alert('Aucune session sélectionnée à exporter');
       return;
     }
 
@@ -129,8 +129,8 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
     return (
       <div className="w-screen h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="text-lg mb-4">No sessions selected</div>
-          <Button onClick={onBack}>Go Back</Button>
+          <div className="text-lg mb-4">Aucune session sélectionnée</div>
+          <Button onClick={onBack}>Retour</Button>
         </div>
       </div>
     );
@@ -261,7 +261,7 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
         {/* Top toolbar */}
         <div className="absolute top-2 left-12 right-[4.75rem] sm:top-4 sm:left-16 sm:right-auto sm:max-w-[calc(100%-4rem-14rem)] z-[1000] flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={onBack}>
-            ← Back
+            ← Retour
           </Button>
           <div className="flex gap-1 rounded-md border bg-background/90 p-0.5">
             <Button
@@ -288,12 +288,12 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
             disabled={isExporting || selectedSessionIds.length === 0}
             title="Export all sessions to CSV"
           >
-            {isExporting ? 'Exporting...' : '📥 Export CSV'}
+            {isExporting ? 'Export…' : 'Exporter en CSV'}
           </Button>
           <CsvImportButton />
           {onOpenCsvAgg && (
             <Button variant="outline" size="sm" onClick={onOpenCsvAgg}>
-              CSV agg
+              Agréger des CSV
             </Button>
           )}
           {onLogout && (

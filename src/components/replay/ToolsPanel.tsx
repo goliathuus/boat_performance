@@ -70,14 +70,14 @@ const tools: Tool[] = [
   },
   {
     id: 'boatList',
-    name: 'Time Ranking',
+    name: 'Classement au temps',
     icon: <BoatListIcon />,
     description: 'Classement selon le temps',
     isWidget: true,
   },
   {
     id: 'gateRanking',
-    name: 'Gate Ranking',
+    name: 'Classement aux portes',
     icon: <GateRankingIcon />,
     description: 'Classement selon les gates',
     isWidget: true,

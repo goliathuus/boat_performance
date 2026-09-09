@@ -62,7 +62,7 @@ export function GateRankingWidget({
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <h2 className="text-lg font-semibold">Gate Ranking</h2>
+          <h2 className="text-lg font-semibold">Classement aux portes</h2>
           {(gateStart || gateFinish) && (
             <button
               onClick={handleReset}

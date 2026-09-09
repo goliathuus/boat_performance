@@ -14,6 +14,15 @@ import { StravaSubmitCallout } from '@/components/StravaSubmitCallout';
 
 type TabType = 'events' | 'sessions';
 
+const DownloadIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+);
+
 interface UnifiedSessionPickerProps {
   onSessionsSelected: (sessionIds: string[]) => void;
   onLogout?: () => void;
@@ -216,10 +225,10 @@ export function UnifiedSessionPicker({
   return (
     <div className="w-screen h-screen overflow-hidden flex flex-col bg-background">
       {/* Header with tabs */}
-      <div className="border-b p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-semibold">Select Sessions to Replay</h1>
-          <div className="flex gap-2">
+      <div className="border-b p-3 sm:p-4">
+        <div className="flex flex-col gap-3 mb-3 sm:mb-4 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-lg sm:text-2xl font-semibold truncate">Choisir les sessions à rejouer</h1>
+          <div className="flex flex-wrap gap-2">
             <StravaSubmitCallout variant="header" />
             {isAdmin && onOpenAdmin && (
               <Button variant="outline" size="sm" onClick={onOpenAdmin}>
@@ -244,7 +253,7 @@ export function UnifiedSessionPicker({
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            Events
+            Événements
           </button>
           <button
             onClick={() => setActiveTab('sessions')}
@@ -254,7 +263,7 @@ export function UnifiedSessionPicker({
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            All Sessions
+            Toutes les sessions
           </button>
         </div>
       </div>
@@ -262,18 +271,18 @@ export function UnifiedSessionPicker({
       {/* Content */}
       <div className="flex-1 overflow-hidden flex">
         {/* Main content area */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6">
           {activeTab === 'events' && (
             <div className="space-y-4">
               {eventsLoading && (
                 <div className="text-center py-8">
-                  <LoadingSpinner size="lg" text="Loading events..." />
+                  <LoadingSpinner size="lg" text="Chargement des événements…" />
                 </div>
               )}
 
               {!eventsLoading && events.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
-                  No events found
+                  Aucun événement
                 </div>
               )}
 
@@ -304,15 +313,15 @@ export function UnifiedSessionPicker({
                               </div>
                               <div className="text-sm text-muted-foreground space-y-1">
                                 <div>
-                                  <span className="font-medium">Start:</span>{' '}
+                                  <span className="font-medium">Début</span>{' '}
                                   {new Date(event.starts_at).toLocaleString()}
                                 </div>
                                 <div>
-                                  <span className="font-medium">End:</span>{' '}
+                                  <span className="font-medium">Fin</span>{' '}
                                   {new Date(event.ends_at).toLocaleString()}
                                 </div>
                                 <div>
-                                  <span className="font-medium">Sessions:</span> {event.session_count}
+                                  <span className="font-medium">Sessions</span> {event.session_count}
                                 </div>
                                 <div className="font-mono text-xs mt-1">{event.code}</div>
                               </div>
@@ -323,9 +332,9 @@ export function UnifiedSessionPicker({
                                 size="sm"
                                 onClick={(e) => handleExportEvent(event.id, event.code, e)}
                                 disabled={exportingEventId === event.id}
-                                title="Export all sessions to CSV"
+                                title="Exporter toutes les sessions en CSV"
                               >
-                                {exportingEventId === event.id ? '...' : '📥'}
+                                {exportingEventId === event.id ? '…' : <DownloadIcon />}
                               </Button>
                               {isExpanded && eventSessions.length > 0 && (
                                 <Button
@@ -336,7 +345,7 @@ export function UnifiedSessionPicker({
                                     handleReplayAllEventSessions();
                                   }}
                                 >
-                                  Replay All
+                                  Tout rejouer
                                 </Button>
                               )}
                             </div>
@@ -347,11 +356,11 @@ export function UnifiedSessionPicker({
                           <div className="border-t bg-muted/30">
                             {isLoadingSessions ? (
                               <div className="p-4 text-center">
-                                <LoadingSpinner size="sm" text="Loading sessions..." />
+                                <LoadingSpinner size="sm" text="Chargement des sessions…" />
                               </div>
                             ) : eventSessions.length === 0 ? (
                               <div className="p-4 text-center text-muted-foreground">
-                                No sessions found for this event
+                                Aucune session dans cet événement
                               </div>
                             ) : (
                               <div className="p-4 space-y-2">
@@ -380,7 +389,7 @@ export function UnifiedSessionPicker({
                                       onClick={() => handleExportSession(session.id, session.name)}
                                       disabled={exportingSessionId === session.id}
                                     >
-                                      {exportingSessionId === session.id ? '...' : '📥'}
+                                      {exportingSessionId === session.id ? '…' : <DownloadIcon />}
                                     </Button>
                                   </div>
                                 ))}
@@ -400,13 +409,13 @@ export function UnifiedSessionPicker({
             <div className="space-y-4">
               {allSessionsLoading && (
                 <div className="text-center py-8">
-                  <LoadingSpinner size="lg" text="Loading sessions..." />
+                  <LoadingSpinner size="lg" text="Chargement des sessions…" />
                 </div>
               )}
 
               {!allSessionsLoading && allSessions.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
-                  No sessions found
+                  Aucune session
                 </div>
               )}
 
@@ -427,12 +436,12 @@ export function UnifiedSessionPicker({
                         <div className="text-sm text-muted-foreground">{session.name}</div>
                         <div className="text-xs text-muted-foreground mt-1">
                           <div>
-                            <span className="font-medium">Started:</span>{' '}
+                            <span className="font-medium">Début</span>{' '}
                             {new Date(session.started_at).toLocaleString()}
                           </div>
                           {session.ended_at && (
                             <div>
-                              <span className="font-medium">Ended:</span>{' '}
+                              <span className="font-medium">Fin</span>{' '}
                               {new Date(session.ended_at).toLocaleString()}
                             </div>
                           )}
@@ -444,7 +453,7 @@ export function UnifiedSessionPicker({
                         onClick={() => handleExportSession(session.id, session.name)}
                         disabled={exportingSessionId === session.id}
                       >
-                        {exportingSessionId === session.id ? '...' : '📥'}
+                        {exportingSessionId === session.id ? '…' : <DownloadIcon />}
                       </Button>
                     </div>
                   ))}
@@ -456,23 +465,21 @@ export function UnifiedSessionPicker({
       </div>
 
       {/* Footer with action buttons */}
-      <div className="border-t p-4 bg-background/95 backdrop-blur-sm">
-        <div className="flex items-center justify-between max-w-6xl mx-auto">
-          <div className="flex items-center gap-4">
-            <Button
-              onClick={() => setIsCsvModalOpen(true)}
-              variant="outline"
-            >
-              📁 Load CSV
+      <div className="border-t p-3 sm:p-4 bg-background/95 backdrop-blur-sm">
+        <div className="flex flex-col gap-3 max-w-6xl mx-auto sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+            <Button onClick={() => setIsCsvModalOpen(true)} variant="outline" size="sm">
+              Importer un CSV
             </Button>
             {onOpenCsvAgg && (
-              <Button onClick={onOpenCsvAgg} variant="outline">
-                CSV agg
+              <Button onClick={onOpenCsvAgg} variant="outline" size="sm">
+                Agréger des CSV
               </Button>
             )}
             {selectedSessionIds.size > 0 && (
               <span className="text-sm text-muted-foreground">
-                {selectedSessionIds.size} session{selectedSessionIds.size !== 1 ? 's' : ''} selected
+                {selectedSessionIds.size} session{selectedSessionIds.size !== 1 ? 's' : ''} sélectionnée
+                {selectedSessionIds.size !== 1 ? 's' : ''}
               </span>
             )}
           </div>
@@ -480,8 +487,9 @@ export function UnifiedSessionPicker({
             onClick={handleReplaySelected}
             disabled={selectedSessionIds.size === 0}
             size="lg"
+            className="w-full sm:w-auto"
           >
-            Replay Selected ({selectedSessionIds.size})
+            Lancer le replay ({selectedSessionIds.size})
           </Button>
         </div>
       </div>

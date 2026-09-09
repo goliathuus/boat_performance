@@ -47,15 +47,31 @@ export function ReplayControls({ currentTime, setCurrentTime }: ReplayControlsPr
           className="hidden md:block h-12 lg:h-16 w-auto opacity-80 flex-none"
         />
         <div className="flex-1 min-w-0 space-y-2 sm:space-y-3">
-        {/* Time display and play/pause */}
-        <div className="flex items-center gap-3 sm:gap-4">
-          <Button
-            onClick={() => setPlaying(!playing)}
-            variant={playing ? 'default' : 'outline'}
-            size="sm"
-          >
-            {playing ? '❚❚ Pause' : '▶ Lecture'}
-          </Button>
+        {/* Lecture, vitesse, puis la timeline pleine largeur */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+          <div className="flex items-center gap-3 flex-none">
+            <Button
+              onClick={() => setPlaying(!playing)}
+              variant={playing ? 'default' : 'outline'}
+              size="sm"
+            >
+              {playing ? '❚❚ Pause' : '▶ Lecture'}
+            </Button>
+            <div className="flex items-center gap-2 sm:hidden">
+              <span className="text-xs text-muted-foreground">Vitesse</span>
+              <Select
+                value={currentSpeed.toString()}
+                onChange={(e) => setSpeed(Number.parseFloat(e.target.value))}
+                className="w-20"
+              >
+                {speedOptions.map((s) => (
+                  <option key={s} value={s.toString()}>
+                    {s}x
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
 
           <div className="flex-1 min-w-0">
             <div className="mb-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-0.5 text-xs tabular-nums">
@@ -81,17 +97,20 @@ export function ReplayControls({ currentTime, setCurrentTime }: ReplayControlsPr
                 setCurrentTime(newCurrentTime);
               }}
               className="w-full"
+              startLabel="Début de la fenêtre de replay"
+              endLabel="Tête de lecture"
+              formatValue={(pct) => formatTime(globalTMin + (pct / 100) * (globalTMax - globalTMin))}
             />
           </div>
         </div>
 
-        {/* Speed controls */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs sm:text-sm text-muted-foreground">Vitesse</span>
+        {/* Speed controls (desktop : la version mobile est sur la ligne Lecture) */}
+        <div className="hidden sm:flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Vitesse</span>
           <Select
             value={currentSpeed.toString()}
             onChange={(e) => setSpeed(Number.parseFloat(e.target.value))}
-            className="w-24 sm:w-32"
+            className="w-32"
           >
             {speedOptions.map((s) => (
               <option key={s} value={s.toString()}>

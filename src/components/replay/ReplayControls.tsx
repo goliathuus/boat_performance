@@ -104,7 +104,13 @@ export function ReplayControls({ currentTime, setCurrentTime }: ReplayControlsPr
     </Select>
   );
 
-  const togglePlay = () => setPlaying(!playing);
+  const togglePlay = () => {
+    // En fin de replay, Lecture repart du debut de la fenetre au lieu de ne rien faire.
+    if (!playing && currentTime >= globalTMax) {
+      setCurrentTime(windowStartTime);
+    }
+    setPlaying(!playing);
+  };
 
   const playButton = (className: string, iconClass: string) => (
     <button

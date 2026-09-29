@@ -4,10 +4,11 @@
  * Huit teintes, ordre fixe, attribuees dans l'ordre. L'ordre EST le mecanisme
  * de securite daltonisme : il ne se reorganise pas.
  *
- * Validee contre #d0cfd4, le gris reel des tuiles Esri World Light Gray sur
- * lesquelles les traces sont dessinees (et non contre du blanc). Les traces
- * vivent sur la carte, dont la surface ne change pas avec le theme de l'UI :
- * il n'y a donc pas de variante sombre de ces couleurs.
+ * Validee contre les couleurs reelles des tuiles Esri World Dark Gray sur
+ * lesquelles les traces sont dessinees : eau #232227 (contraste >= 5:1) et
+ * terre #474749 (>= 3:1), ainsi que le verre fume des panneaux. Les traces
+ * portent en plus un liseré sombre (ReplayMap) qui les detache du champ de
+ * vent colore quand celui-ci est affiche.
  *
  * Limite connue : sur une carte, deux traces quelconques peuvent se croiser,
  * donc chaque paire compte. A ce test, la couleur seule ne separe que TROIS
@@ -15,14 +16,14 @@
  * trace et par l'isolation au survol -- pas par la teinte.
  */
 const FLEET_COLORS = [
-  '#2a78d6', // 01 bleu
-  '#eb6834', // 02 orange
-  '#1baf7a', // 03 aqua
-  '#eda100', // 04 jaune
-  '#e87ba4', // 05 magenta
-  '#008300', // 06 vert
-  '#4a3aa7', // 07 violet
-  '#e34948', // 08 rouge
+  '#4c9df7', // 01 bleu
+  '#ff8a4c', // 02 orange
+  '#2fd6a0', // 03 aqua
+  '#ffd23f', // 04 jaune
+  '#ff7eb6', // 05 magenta
+  '#7bd85c', // 06 vert
+  '#a98bff', // 07 violet
+  '#ff5a5a', // 08 rouge
 ];
 
 /**

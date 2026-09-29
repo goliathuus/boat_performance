@@ -151,7 +151,7 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
     <div className="h-full">
       {/* Tableau */}
       <div
-        className="bg-background/95 backdrop-blur-sm border-l rounded-tl-lg p-4 h-full flex flex-col"
+        className="glass border-l rounded-tl-xl p-4 h-full flex flex-col"
         style={{
           width: '400px',
         }}
@@ -216,7 +216,7 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-background border-b">
+            <thead className="sticky top-0 bg-card border-b">
               <tr>
                 <th className="text-left p-2 font-semibold text-xs">Nom</th>
                 <th className="text-right p-2 font-semibold text-xs">SOG inst</th>

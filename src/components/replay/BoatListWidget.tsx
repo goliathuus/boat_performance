@@ -118,7 +118,7 @@ export function BoatListWidget({ currentTime, onCenterBoat }: BoatListWidgetProp
         title="Afficher la liste des bateaux"
         aria-label="Afficher la liste des bateaux"
         aria-expanded="false"
-        className="absolute top-2 right-0 z-[999] flex items-center gap-1.5 rounded-l-md border border-r-0 bg-background/95 backdrop-blur-sm px-2 py-1.5 text-xs font-medium shadow-sm hover:bg-accent/40 transition-colors"
+        className="absolute top-2 right-0 z-[999] flex items-center gap-1.5 rounded-l-lg border border-r-0 glass px-2 py-1.5 text-xs font-medium shadow-sm hover:bg-accent/40 transition-colors"
       >
         <span className="flex -space-x-1">
           {boatsWithSpeed.slice(0, 4).map((boat) => (
@@ -135,7 +135,7 @@ export function BoatListWidget({ currentTime, onCenterBoat }: BoatListWidgetProp
   }
 
   return (
-    <div className="absolute inset-y-0 right-0 flex flex-col bg-background/95 backdrop-blur-sm border-l rounded-tl-lg p-2 z-[999] w-[168px] sm:w-[210px] max-w-[70vw]">
+    <div className="absolute inset-y-0 right-0 flex flex-col glass border-l rounded-tl-xl p-2 z-[999] w-[168px] sm:w-[210px] max-w-[70vw]">
       <div className="flex items-center justify-between gap-2 mb-2 px-1 flex-none">
         <span className="text-xs font-semibold text-muted-foreground">Bateaux</span>
         <button

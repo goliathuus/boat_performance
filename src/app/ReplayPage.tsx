@@ -38,7 +38,15 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
   const setWindowStartTime = useReplayStore((state) => state.setWindowStartTime);
   const [isExporting, setIsExporting] = useState(false);
   const [activeTool, setActiveTool] = useState<string | null>(null);
-  const [openWidgets, setOpenWidgets] = useState<Set<string>>(new Set());
+  const [openWidgets, setOpenWidgets] = useState<Set<string>>(() => new Set(['wind']));
+  const toggleWind = useCallback(() => {
+    setOpenWidgets((prev) => {
+      const next = new Set(prev);
+      if (next.has('wind')) next.delete('wind');
+      else next.add('wind');
+      return next;
+    });
+  }, []);
   const [replayViewMode, setReplayViewMode] = useState<'2d' | '3d'>('2d');
 
   // Gate Ranking state
@@ -128,7 +136,7 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
 
   if (selectedSessionIds.length === 0) {
     return (
-      <div className="w-screen app-shell flex items-center justify-center">
+      <div className="dark bg-background text-foreground w-screen app-shell flex items-center justify-center">
         <div className="text-center">
           <div className="text-lg mb-4">Aucune session sélectionnée</div>
           <Button onClick={onBack}>Retour</Button>
@@ -142,14 +150,14 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
   // 2. Global time range is not set yet (which means sessions aren't ready)
   if (loading || globalTMin === null || globalTMax === null) {
     return (
-      <div className="w-screen app-shell flex items-center justify-center bg-background">
+      <div className="dark bg-background text-foreground w-screen app-shell flex items-center justify-center">
         <LoadingSpinner size="lg" text="Chargement des données de télémétrie..." />
       </div>
     );
   }
 
   return (
-    <div className="w-screen app-shell overflow-hidden flex flex-col">
+    <div className="dark bg-background text-foreground w-screen app-shell overflow-hidden flex flex-col">
       {/* Map */}
       <div className="flex-1 relative">
         {/* Tools Panel - left side */}
@@ -204,6 +212,8 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
             onSetRankings={setRankings}
             onSetCrossingsByBoat={setCrossingsByBoat}
             onSetSelectedBoatId={setSelectedBoatId}
+            showWind={openWidgets.has('wind')}
+            onToggleWind={toggleWind}
           />
         ) : (
           <Suspense fallback={<div className="w-full h-full flex items-center justify-center"><LoadingSpinner /></div>}>

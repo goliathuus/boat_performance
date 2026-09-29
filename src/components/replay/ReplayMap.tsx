@@ -6,6 +6,7 @@ import {
   Marker,
   Tooltip,
   Popup,
+  Pane,
   useMap,
   useMapEvents,
 } from 'react-leaflet';
@@ -31,6 +32,23 @@ function findLastPoint(points: TrackPoint[], currentTime: number): TrackPoint | 
 }
 import { computeBounds } from '@/domain/tracks';
 import { formatTime } from '@/lib/time';
+import { WindLayer } from '@/components/map/WindLayer';
+import { WindLegend } from '@/components/map/WindLegend';
+import { WindProbe } from '@/components/map/WindProbe';
+import { useWindField } from '@/hooks/useWindField';
+import type { WindModelId } from '@/lib/wind';
+
+// Modele de vent choisi par ce visiteur (confort local, pas une donnee partagee).
+const WIND_MODEL_STORAGE_KEY = 'boat-tracker:wind-model';
+
+function readWindModelPref(): WindModelId | null {
+  try {
+    const v = localStorage.getItem(WIND_MODEL_STORAGE_KEY);
+    return v === 'arome' || v === 'ecmwf' ? v : null;
+  } catch {
+    return null;
+  }
+}
 
 // Fix default marker icons
 delete (L.Icon.Default.prototype as { _getIconUrl?: unknown })._getIconUrl;
@@ -89,17 +107,17 @@ function createBoatIcon(cog: number | undefined, boatColor: string, name: string
 
   // Etiquette permanente : au-dela de trois bateaux la couleur ne suffit plus a
   // les distinguer sur la carte, c'est le nom qui porte l'identite. Chrome neutre
-  // (pastille blanche, encre sombre) pour ne pas concurrencer les traces ; la
+  // (verre fume, encre claire) pour ne pas concurrencer les traces ; la
   // pastille de couleur fait le lien avec la trace.
   const label = `
     <span style="
       position:absolute; left:27px; top:50%; transform:translateY(-50%);
       display:inline-flex; align-items:center; gap:5px;
       max-width:150px; padding:2px 7px 2px 5px;
-      background:#ffffff; border:1px solid rgba(15,23,42,.16);
-      border-radius:3px; box-shadow:0 1px 2px rgba(15,23,42,.18);
+      background:rgba(17,21,28,.82); border:1px solid rgba(255,255,255,.12);
+      border-radius:999px; box-shadow:0 2px 6px rgba(0,0,0,.45);
       font:600 11px/1.35 system-ui,-apple-system,'Segoe UI',sans-serif;
-      letter-spacing:.01em; color:#101520; white-space:nowrap;
+      letter-spacing:.01em; color:#eef2f7; white-space:nowrap;
       overflow:hidden; text-overflow:ellipsis; pointer-events:none;
     ">
       <span style="width:6px;height:6px;border-radius:50%;background:${boatColor};flex:none;"></span>
@@ -416,6 +434,10 @@ interface ReplayMapContentProps {
   onSetRankings: (rankings: Result[]) => void;
   onSetCrossingsByBoat: (crossings: Map<string, { start?: Crossing; finish?: Crossing }>) => void;
   onSetSelectedBoatId: (boatId: string | null) => void;
+  /** Affiche la couche de vent (champ colore + particules) et sa legende. */
+  showWind?: boolean;
+  /** Bascule du vent depuis la legende ; sans elle, la legende n'apparait qu'avec le vent. */
+  onToggleWind?: () => void;
 }
 
 const ReplayMapContent = memo(function ReplayMapContent({ 
@@ -904,17 +926,31 @@ const ReplayMapContent = memo(function ReplayMapContent({
             {/* Progressive track (all points up to currentTime) - simple color, no SOG coloring */}
             {/* Focused session has thicker, more opaque track */}
             {/* Show track even if it has fewer than 2 points (might be loading) */}
+            {/* Liseré sombre sous la trace : la detache du champ de vent colore. */}
             {progressiveTrackPositions.length >= 2 ? (
-              <Polyline
-                positions={progressiveTrackPositions}
-                pathOptions={{
-                  color: session.color,
-                  weight: isFocused ? 3 : 1.75,
-                  opacity: isFocused ? 1 : 0.9,
-                  lineCap: 'round',
-                  lineJoin: 'round',
-                }}
-              />
+              <>
+                <Polyline
+                  positions={progressiveTrackPositions}
+                  interactive={false}
+                  pathOptions={{
+                    color: '#07090d',
+                    weight: isFocused ? 6 : 4,
+                    opacity: 0.55,
+                    lineCap: 'round',
+                    lineJoin: 'round',
+                  }}
+                />
+                <Polyline
+                  positions={progressiveTrackPositions}
+                  pathOptions={{
+                    color: session.color,
+                    weight: isFocused ? 3 : 2,
+                    opacity: isFocused ? 1 : 0.92,
+                    lineCap: 'round',
+                    lineJoin: 'round',
+                  }}
+                />
+              </>
             ) : null}
 
             {/* Current position marker (oriented boat icon) */}
@@ -960,6 +996,10 @@ interface ReplayMapProps {
   onSetRankings: (rankings: Result[]) => void;
   onSetCrossingsByBoat: (crossings: Map<string, { start?: Crossing; finish?: Crossing }>) => void;
   onSetSelectedBoatId: (boatId: string | null) => void;
+  /** Affiche la couche de vent (champ colore + particules) et sa legende. */
+  showWind?: boolean;
+  /** Bascule du vent depuis la legende ; sans elle, la legende n'apparait qu'avec le vent. */
+  onToggleWind?: () => void;
 }
 
 export function ReplayMap({ 
@@ -983,18 +1023,49 @@ export function ReplayMap({
   onSetRankings,
   onSetCrossingsByBoat,
   onSetSelectedBoatId,
+  showWind = false,
+  onToggleWind,
 }: ReplayMapProps) {
+  const [windModelPref, setWindModelPref] = useState<WindModelId | null>(readWindModelPref);
+  const wind = useWindField(showWind, currentTime, windModelPref);
+  const selectWindModel = useCallback((model: WindModelId) => {
+    setWindModelPref(model);
+    try {
+      localStorage.setItem(WIND_MODEL_STORAGE_KEY, model);
+    } catch {
+      /* stockage indisponible (navigation privee) : le choix vaut pour la session */
+    }
+  }, []);
+  // Les clics sur la carte appartiennent d'abord aux outils actifs.
+  const windProbeEnabled = !activeTool && gateDrawMode === 'none';
+
   return (
+    <div className="relative h-full w-full">
     <MapContainer
       center={[46.0, -1.0]}
       zoom={10}
+      maxZoom={19}
       style={{ height: '100%', width: '100%' }}
       className="z-0"
     >
       <TileLayer
-        attribution='Tiles &copy; <a href="https://www.esri.com/">Esri</a> &mdash; Esri, DeLorme, NAVTEQ'
-        url="https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+        attribution='Tiles &copy; <a href="https://www.esri.com/">Esri</a> &mdash; Esri, HERE, Garmin'
+        url="https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+        maxNativeZoom={16}
       />
+      {/* Toponymes au-dessus du vent, sous les traces (overlayPane = 400). */}
+      <Pane name="labels" style={{ zIndex: 350, pointerEvents: 'none' }}>
+        <TileLayer
+          url="https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+          maxNativeZoom={16}
+        />
+      </Pane>
+      {showWind && wind.grid && (
+        <>
+          <WindLayer grid={wind.grid} time={currentTime} />
+          <WindProbe grid={wind.grid} time={currentTime} enabled={windProbeEnabled} />
+        </>
+      )}
       <ReplayMapContent 
         currentTime={currentTime} 
         onMapReady={onMapReady} 
@@ -1018,6 +1089,22 @@ export function ReplayMap({
         onSetSelectedBoatId={onSetSelectedBoatId}
       />
     </MapContainer>
+    {(showWind || onToggleWind) && (
+      <div className="absolute bottom-6 left-14 z-[900] sm:left-16">
+        <WindLegend
+          enabled={showWind}
+          onToggleEnabled={onToggleWind}
+          status={wind.status}
+          model={wind.model}
+          aromeAvailable={wind.aromeAvailable}
+          onSelectModel={selectWindModel}
+          grid={wind.grid}
+          runInfo={wind.runInfo}
+          currentTime={currentTime}
+        />
+      </div>
+    )}
+    </div>
   );
 }
 
@@ -1043,6 +1130,10 @@ interface ReplayMapWithDataProps {
   onSetRankings: (rankings: Result[]) => void;
   onSetCrossingsByBoat: (crossings: Map<string, { start?: Crossing; finish?: Crossing }>) => void;
   onSetSelectedBoatId: (boatId: string | null) => void;
+  /** Affiche la couche de vent (champ colore + particules) et sa legende. */
+  showWind?: boolean;
+  /** Bascule du vent depuis la legende ; sans elle, la legende n'apparait qu'avec le vent. */
+  onToggleWind?: () => void;
 }
 
 export function ReplayMapWithData({ 
@@ -1066,6 +1157,8 @@ export function ReplayMapWithData({
   onSetRankings,
   onSetCrossingsByBoat,
   onSetSelectedBoatId,
+  showWind,
+  onToggleWind,
 }: ReplayMapWithDataProps) {
   return (
     <ReplayMap 
@@ -1089,6 +1182,8 @@ export function ReplayMapWithData({
       onSetRankings={onSetRankings}
       onSetCrossingsByBoat={onSetCrossingsByBoat}
       onSetSelectedBoatId={onSetSelectedBoatId}
+      showWind={showWind}
+      onToggleWind={onToggleWind}
     />
   );
 }

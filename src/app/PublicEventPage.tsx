@@ -36,7 +36,15 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
   const speed = useReplayStore((state) => state.speed);
   const setWindowStartTime = useReplayStore((state) => state.setWindowStartTime);
   const [activeTool, setActiveTool] = useState<string | null>(null);
-  const [openWidgets, setOpenWidgets] = useState<Set<string>>(new Set());
+  const [openWidgets, setOpenWidgets] = useState<Set<string>>(() => new Set(['wind']));
+  const toggleWind = useCallback(() => {
+    setOpenWidgets((prev) => {
+      const next = new Set(prev);
+      if (next.has('wind')) next.delete('wind');
+      else next.add('wind');
+      return next;
+    });
+  }, []);
   const [replayViewMode, setReplayViewMode] = useState<'2d' | '3d'>('2d');
   const [gateStart, setGateStart] = useState<Gate | null>(null);
   const [gateFinish, setGateFinish] = useState<Gate | null>(null);
@@ -102,7 +110,7 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
 
   if (loadingEvent) {
     return (
-      <div className="w-screen app-shell flex items-center justify-center bg-background">
+      <div className="dark bg-background text-foreground w-screen app-shell flex items-center justify-center">
         <LoadingSpinner size="lg" text="Loading public event..." />
       </div>
     );
@@ -110,7 +118,7 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
 
   if (eventError || !event) {
     return (
-      <div className="w-screen app-shell flex items-center justify-center bg-background">
+      <div className="dark bg-background text-foreground w-screen app-shell flex items-center justify-center">
         <div className="text-center">
           <div className="text-xl font-semibold mb-2">Public link unavailable</div>
           <div className="text-sm text-muted-foreground">
@@ -123,7 +131,7 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
 
   if (telemetryError) {
     return (
-      <div className="w-screen app-shell flex items-center justify-center bg-background">
+      <div className="dark bg-background text-foreground w-screen app-shell flex items-center justify-center">
         <div className="text-sm text-destructive">{telemetryError.message}</div>
       </div>
     );
@@ -136,7 +144,7 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
 
   if (!loadingTelemetry && selectedCount === 0) {
     return (
-      <div className="w-screen app-shell flex items-center justify-center bg-background">
+      <div className="dark bg-background text-foreground w-screen app-shell flex items-center justify-center">
         <div className="text-center">
           <div className="text-xl font-semibold mb-2">No public sessions yet</div>
           <div className="text-sm text-muted-foreground">
@@ -149,7 +157,7 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
 
   if (!loadingTelemetry && selectedCount > 0 && !hasAnyTelemetryPoints) {
     return (
-      <div className="w-screen app-shell flex items-center justify-center bg-background">
+      <div className="dark bg-background text-foreground w-screen app-shell flex items-center justify-center">
         <div className="text-center">
           <div className="text-xl font-semibold mb-2">No telemetry available</div>
           <div className="text-sm text-muted-foreground">
@@ -162,15 +170,15 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
 
   if (loadingTelemetry || globalTMin === null || globalTMax === null) {
     return (
-      <div className="w-screen app-shell flex items-center justify-center bg-background">
+      <div className="dark bg-background text-foreground w-screen app-shell flex items-center justify-center">
         <LoadingSpinner size="lg" text="Loading telemetry..." />
       </div>
     );
   }
 
   return (
-    <div className="w-screen app-shell overflow-hidden flex flex-col">
-      <div className="absolute top-2 left-12 right-[4.75rem] sm:top-4 sm:left-16 sm:right-auto sm:max-w-[calc(100%-4rem-14rem)] z-[1000] flex flex-wrap items-center gap-2 sm:gap-3 bg-background/90 backdrop-blur-sm border rounded-md px-2.5 py-1.5 sm:px-3 sm:py-2">
+    <div className="dark bg-background text-foreground w-screen app-shell overflow-hidden flex flex-col">
+      <div className="absolute top-2 left-12 right-[4.75rem] sm:top-4 sm:left-16 sm:right-auto sm:max-w-[calc(100%-4rem-14rem)] z-[1000] flex flex-wrap items-center gap-2 sm:gap-3 glass border rounded-lg px-2.5 py-1.5 sm:px-3 sm:py-2">
         <div className="min-w-0">
           <div className="font-semibold truncate">{event.title}</div>
           <div className="text-xs text-muted-foreground truncate">
@@ -245,6 +253,8 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
             onSetRankings={setRankings}
             onSetCrossingsByBoat={setCrossingsByBoat}
             onSetSelectedBoatId={setSelectedBoatId}
+            showWind={openWidgets.has('wind')}
+            onToggleWind={toggleWind}
           />
         ) : (
           <Suspense fallback={<div className="w-full h-full flex items-center justify-center"><LoadingSpinner /></div>}>

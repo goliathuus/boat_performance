@@ -55,7 +55,7 @@ export function GateRankingWidget({
   return (
     <div className="h-full">
       <div
-        className="bg-background/95 backdrop-blur-sm border-l rounded-tl-lg p-4 h-full flex flex-col"
+        className="glass border-l rounded-tl-xl p-4 h-full flex flex-col"
         style={{
           width: '400px',
         }}

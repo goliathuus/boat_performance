@@ -40,28 +40,81 @@
     --radius: 0.5rem;
   }
 
+  /*
+   * Theme des pages carte (replay, evenement public), facon Windy : la carte
+   * sombre occupe tout l'ecran, le chrome flotte par-dessus en verre fume.
+   * Applique par la classe .dark sur la racine de ces pages seulement ; le
+   * login et la selection de sessions restent en clair.
+   */
   .dark {
-    --background: 218 30% 7%;
+    --background: 220 22% 9%;
     --foreground: 213 33% 95%;
-    --card: 218 26% 11%;
+    --card: 220 20% 12%;
     --card-foreground: 213 33% 95%;
-    --popover: 218 26% 11%;
+    --popover: 220 20% 12%;
     --popover-foreground: 213 33% 95%;
-    --primary: 217 90% 67%;
-    --primary-foreground: 218 40% 8%;
-    --secondary: 218 22% 17%;
+    --primary: 205 90% 60%;
+    --primary-foreground: 220 40% 8%;
+    --secondary: 220 16% 18%;
     --secondary-foreground: 213 25% 88%;
-    --muted: 218 22% 17%;
-    --muted-foreground: 216 14% 62%;
-    --accent: 218 24% 21%;
+    --muted: 220 16% 18%;
+    --muted-foreground: 216 12% 64%;
+    --accent: 220 16% 22%;
     --accent-foreground: 213 33% 95%;
     --destructive: 0 72% 62%;
-    --destructive-foreground: 218 40% 8%;
-    --border: 218 20% 20%;
-    --input: 218 20% 20%;
-    --ring: 217 90% 67%;
+    --destructive-foreground: 220 40% 8%;
+    --border: 220 14% 24%;
+    --input: 220 14% 26%;
+    --ring: 205 90% 60%;
+    color-scheme: dark;
   }
 }
+
+@layer components {
+  /*
+   * Panneau flottant en verre fume. Le flou garde la carte lisible sous le
+   * chrome ; l'opacite reste assez haute pour que le texte ne depende pas de
+   * ce qui passe dessous (particules de vent comprises).
+   */
+  .glass {
+    background-color: hsl(var(--background) / 0.78);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    backdrop-filter: blur(14px) saturate(140%);
+    border-color: hsl(0 0% 100% / 0.08);
+    box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.45);
+  }
+}
+
+/* Leaflet en theme sombre : tooltips, popups, controles et attribution. */
+.dark .leaflet-container {
+  background: #232227; /* eau des tuiles Esri Dark Gray, evite le flash blanc */
+  font-family: inherit;
+}
+.dark .leaflet-tooltip,
+.dark .leaflet-popup-content-wrapper,
+.dark .leaflet-popup-tip {
+  background: hsl(220 22% 11% / 0.92);
+  color: hsl(213 33% 95%);
+  border: 1px solid hsl(0 0% 100% / 0.1);
+  box-shadow: 0 6px 18px -6px rgb(0 0 0 / 0.6);
+}
+.dark .leaflet-tooltip-top::before { border-top-color: hsl(220 22% 11% / 0.92); }
+.dark .leaflet-tooltip-bottom::before { border-bottom-color: hsl(220 22% 11% / 0.92); }
+.dark .leaflet-tooltip-left::before { border-left-color: hsl(220 22% 11% / 0.92); }
+.dark .leaflet-tooltip-right::before { border-right-color: hsl(220 22% 11% / 0.92); }
+.dark .leaflet-popup-close-button { color: hsl(216 12% 64%) !important; }
+.dark .leaflet-bar a {
+  background: hsl(220 22% 11% / 0.85);
+  color: hsl(213 33% 95%);
+  border-bottom-color: hsl(0 0% 100% / 0.08);
+}
+.dark .leaflet-bar a:hover { background: hsl(220 16% 22%); }
+.dark .leaflet-bar { border-color: hsl(0 0% 100% / 0.1) !important; }
+.dark .leaflet-control-attribution {
+  background: hsl(220 22% 9% / 0.6) !important;
+  color: hsl(216 12% 64%);
+}
+.dark .leaflet-control-attribution a { color: hsl(213 25% 80%); }
 
 @layer base {
   * {

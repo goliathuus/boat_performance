@@ -55,7 +55,7 @@ export function CreateEventForm({ onSuccess, onCancel }: CreateEventFormProps) {
       const endsAtDate = new Date(endsAt);
 
       if (endsAtDate <= startsAtDate) {
-        setError('End date must be after start date');
+        setError('La fin doit être postérieure au début');
         setLoading(false);
         return;
       }
@@ -68,7 +68,7 @@ export function CreateEventForm({ onSuccess, onCancel }: CreateEventFormProps) {
       setCreatedShareEnabled(event.share_enabled);
       onSuccess(event.code);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create event');
+      setError(err instanceof Error ? err.message : 'Impossible de créer l’événement');
     } finally {
       setLoading(false);
     }
@@ -88,8 +88,8 @@ export function CreateEventForm({ onSuccess, onCancel }: CreateEventFormProps) {
   if (createdCode) {
     return (
       <div className="space-y-4">
-        <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
-          <p className="text-sm text-muted-foreground mb-2">Event created successfully!</p>
+        <div className="rounded-xl border border-primary/30 bg-primary/10 p-4">
+          <p className="text-sm text-muted-foreground mb-2">Événement créé !</p>
           <div className="flex items-center gap-2">
             <code className="text-2xl font-mono font-bold">{createdCode}</code>
             <Button
@@ -148,7 +148,7 @@ export function CreateEventForm({ onSuccess, onCancel }: CreateEventFormProps) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
-          className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+          className="field"
           placeholder="e.g., Regatta 2024"
         />
       </div>
@@ -163,10 +163,10 @@ export function CreateEventForm({ onSuccess, onCancel }: CreateEventFormProps) {
             value={ownerAdminId}
             onChange={(e) => setOwnerAdminId(e.target.value)}
             required
-            className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+            className="field"
           >
             {adminUsers.length === 0 ? (
-              <option value="">No admin available</option>
+              <option value="">Aucun admin disponible</option>
             ) : (
               adminUsers.map((admin) => (
                 <option key={admin.id} value={admin.id}>
@@ -195,7 +195,7 @@ export function CreateEventForm({ onSuccess, onCancel }: CreateEventFormProps) {
           value={startsAt || defaultStartsAt}
           onChange={(e) => setStartsAt(e.target.value)}
           required
-          className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+          className="field"
         />
       </div>
 
@@ -209,7 +209,7 @@ export function CreateEventForm({ onSuccess, onCancel }: CreateEventFormProps) {
           value={endsAt || defaultEndsAt}
           onChange={(e) => setEndsAt(e.target.value)}
           required
-          className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+          className="field"
         />
       </div>
 

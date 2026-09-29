@@ -83,6 +83,23 @@
     border-color: hsl(0 0% 100% / 0.08);
     box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.45);
   }
+
+  /*
+   * Nuit marine des pages hors carte : meme base que l'eau des tuiles sombres,
+   * une lueur bleue en haut a gauche et une teinte sarcelle en bas a droite
+   * pour donner de la profondeur sans image.
+   */
+  .app-backdrop {
+    background:
+      radial-gradient(1200px 700px at 12% -10%, hsl(210 80% 45% / 0.28), transparent 60%),
+      radial-gradient(900px 600px at 110% 110%, hsl(180 70% 35% / 0.2), transparent 60%),
+      linear-gradient(180deg, hsl(222 30% 9%), hsl(220 26% 7%));
+  }
+
+  /* Champ de formulaire sur fond sombre. */
+  .field {
+    @apply w-full rounded-lg border border-input bg-background/60 px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/70 transition-colors focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/30;
+  }
 }
 
 /* Leaflet en theme sombre : tooltips, popups, controles et attribution. */
@@ -136,103 +153,6 @@
 
 /* Leaflet CSS imports will be handled by leaflet imports in components */
 
-/* Login Page Animations */
-@keyframes wave {
-  0% {
-    transform: translateX(0) translateZ(0) scaleY(1);
-  }
-  50% {
-    transform: translateX(-25%) translateZ(0) scaleY(0.5);
-  }
-  100% {
-    transform: translateX(-50%) translateZ(0) scaleY(1);
-  }
-}
-
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0px) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-20px) rotate(5deg);
-  }
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(50px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes gradient {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-@keyframes rotate {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.wave {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 200%;
-  height: 100px;
-  background: linear-gradient(to right, rgba(59, 130, 246, 0.5), rgba(37, 99, 235, 0.3));
-  animation: wave 7s cubic-bezier(0.36, 0.45, 0.63, 0.53) infinite;
-  transform-origin: center bottom;
-}
-
-.wave:nth-of-type(2) {
-  animation-delay: -2s;
-  opacity: 0.7;
-  height: 80px;
-}
-
-.wave:nth-of-type(3) {
-  animation-delay: -4s;
-  opacity: 0.5;
-  height: 60px;
-}
-
-.animate-float {
-  animation: float 6s ease-in-out infinite;
-}
-
-.animate-slideInRight {
-  animation: slideInRight 0.8s ease-out;
-}
-
-.animate-gradient {
-  animation: gradient 15s ease infinite;
-}
 /*
  * Hauteur d'ecran fiable sur mobile.
  *

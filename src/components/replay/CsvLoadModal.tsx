@@ -85,7 +85,7 @@ export function CsvLoadModal({ isOpen, onClose, onLoadComplete }: CsvLoadModalPr
         onClose();
         onLoadComplete(sessionIds);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to parse CSV');
+        setError(err instanceof Error ? err.message : 'Lecture du CSV impossible');
         console.error('CSV import error:', err);
       } finally {
         setLoading(false);
@@ -149,7 +149,7 @@ export function CsvLoadModal({ isOpen, onClose, onLoadComplete }: CsvLoadModalPr
           onClose();
           onLoadComplete(sessionIds);
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Failed to parse CSV');
+          setError(err instanceof Error ? err.message : 'Lecture du CSV impossible');
           console.error('CSV import error:', err);
         } finally {
           setLoading(false);
@@ -171,11 +171,11 @@ export function CsvLoadModal({ isOpen, onClose, onLoadComplete }: CsvLoadModalPr
 
   return (
     <div
-      className="fixed inset-0 z-[2000] flex items-center justify-center bg-background/90 backdrop-blur-sm"
+      className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="bg-background border rounded-lg shadow-lg p-8 max-w-md w-full mx-4 relative"
+        className="glass rounded-2xl border shadow-2xl p-8 max-w-md w-full mx-4 relative"
         onClick={(e) => e.stopPropagation()}
         onDrop={handleDrop}
         onDragOver={handleDragOver}

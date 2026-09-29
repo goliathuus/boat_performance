@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { WindBackdrop } from '@/components/ui/WindBackdrop';
+import { PageHeader } from '@/components/ui/brand';
 import { downloadCSV, generateCSVFilename } from '@/lib/csv-download';
 import {
   detectCsvInputType,
@@ -151,20 +153,20 @@ export function CsvAggregatorPage({ onBack, onLogout }: CsvAggregatorPageProps) 
     setLastExportInfo(null);
 
     if (files.length === 0) {
-      setGlobalError('Add at least one CSV file.');
+      setGlobalError('Ajoutez au moins un fichier CSV.');
       return;
     }
 
     const parseResults = parseAllFiles(files);
     const allRows = parseResults.flatMap((result) => result.rows);
     if (allRows.length === 0) {
-      setGlobalError('No valid rows found. Check file type and content.');
+      setGlobalError('Aucune ligne valide : vérifiez le type et le contenu des fichiers.');
       return;
     }
 
     const mergedRows = mergeNormalizedRows(allRows);
     if (mergedRows.length === 0) {
-      setGlobalError('No rows remain after deduplication.');
+      setGlobalError('Plus aucune ligne après dédoublonnage.');
       return;
     }
 
@@ -175,36 +177,38 @@ export function CsvAggregatorPage({ onBack, onLogout }: CsvAggregatorPageProps) 
   };
 
   return (
-    <div className="w-screen app-shell overflow-hidden flex flex-col bg-background">
-      <div className="border-b p-4">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+    <div className="relative w-screen app-shell overflow-hidden flex flex-col">
+      <WindBackdrop intensity={0.5} />
+      <PageHeader
+        title="Agréger des CSV"
+        subtitle="Fusionnez des exports ADRENA et des CSV de la plateforme en un seul fichier."
+        actions={
+          <>
             <Button variant="outline" size="sm" onClick={onBack}>
-              ← Back
+              ← Retour
             </Button>
-            <h1 className="text-2xl font-semibold">CSV Aggregator</h1>
-          </div>
-          {onLogout && (
-            <Button variant="outline" size="sm" onClick={onLogout}>
-              Déconnexion
-            </Button>
-          )}
-        </div>
-      </div>
+            {onLogout && (
+              <Button variant="ghost" size="sm" onClick={onLogout}>
+                Déconnexion
+              </Button>
+            )}
+          </>
+        }
+      />
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="relative flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="max-w-6xl mx-auto space-y-6">
-          <div className="border rounded-lg p-4 bg-muted/20">
+          <div className="glass rounded-xl border p-4">
             <div className="flex flex-wrap items-center gap-3">
-              <Button onClick={openFilesDialog}>Add CSV files</Button>
+              <Button onClick={openFilesDialog}>Ajouter des CSV</Button>
               <Button variant="outline" onClick={clearAll} disabled={files.length === 0}>
-                Clear
+                Vider
               </Button>
               <Button onClick={handleAggregate} disabled={files.length === 0}>
-                Aggregate and Download
+                Fusionner et télécharger
               </Button>
               <div className="text-sm text-muted-foreground">
-                Valid rows: {totalValidRows} | Rejected rows: {totalRejectedRows}
+                Lignes valides : {totalValidRows} · rejetées : {totalRejectedRows}
               </div>
             </div>
             <input
@@ -230,8 +234,8 @@ export function CsvAggregatorPage({ onBack, onLogout }: CsvAggregatorPageProps) 
           )}
 
           {files.length === 0 ? (
-            <div className="border rounded-lg p-10 text-center text-muted-foreground">
-              Add ADRENA exports and/or platform CSV files to build one merged CSV.
+            <div className="glass rounded-xl border p-10 text-center text-muted-foreground">
+              Ajoutez des exports ADRENA et/ou des CSV de la plateforme pour obtenir un seul CSV fusionné.
             </div>
           ) : (
             <div className="space-y-3">
@@ -245,38 +249,38 @@ export function CsvAggregatorPage({ onBack, onLogout }: CsvAggregatorPageProps) 
                 };
                 const firstError = result?.errors[0];
                 return (
-                  <div key={file.id} className="border rounded-lg p-4 space-y-3">
+                  <div key={file.id} className="glass rounded-xl border p-4 space-y-3">
                     <div className="flex items-center justify-between gap-2">
                       <div className="font-medium">{file.fileName}</div>
                       <Button variant="outline" size="sm" onClick={() => removeFile(file.id)}>
-                        Remove
+                        Retirer
                       </Button>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                       <label className="text-sm space-y-1">
-                        <div className="text-muted-foreground">Detected type</div>
+                        <div className="text-muted-foreground">Type détecté</div>
                         <div className="font-medium">{labelType(file.detectedType)}</div>
                       </label>
 
                       <label className="text-sm space-y-1">
-                        <div className="text-muted-foreground">Use as</div>
+                        <div className="text-muted-foreground">Traiter comme</div>
                         <select
-                          className="w-full border rounded-md h-9 px-2 bg-background"
+                          className="field h-9 py-0"
                           value={file.selectedType}
                           onChange={(e) =>
                             updateFile(file.id, { selectedType: e.target.value as CsvInputType })
                           }
                         >
                           <option value="adrena">ADRENA</option>
-                          <option value="platform">Platform CSV</option>
+                          <option value="platform">CSV plateforme</option>
                         </select>
                       </label>
 
                       <label className="text-sm space-y-1">
-                        <div className="text-muted-foreground">Boat ID (ADRENA)</div>
+                        <div className="text-muted-foreground">ID bateau (ADRENA)</div>
                         <input
-                          className="w-full border rounded-md h-9 px-2 bg-background"
+                          className="field h-9 py-0"
                           value={file.boatId}
                           onChange={(e) => updateFile(file.id, { boatId: e.target.value })}
                           disabled={file.selectedType !== 'adrena'}
@@ -284,9 +288,9 @@ export function CsvAggregatorPage({ onBack, onLogout }: CsvAggregatorPageProps) 
                       </label>
 
                       <label className="text-sm space-y-1">
-                        <div className="text-muted-foreground">Boat Name (ADRENA)</div>
+                        <div className="text-muted-foreground">Nom du bateau (ADRENA)</div>
                         <input
-                          className="w-full border rounded-md h-9 px-2 bg-background"
+                          className="field h-9 py-0"
                           value={file.boatName}
                           onChange={(e) => updateFile(file.id, { boatName: e.target.value })}
                           disabled={file.selectedType !== 'adrena'}
@@ -295,7 +299,7 @@ export function CsvAggregatorPage({ onBack, onLogout }: CsvAggregatorPageProps) 
                     </div>
 
                     <div className="text-sm text-muted-foreground">
-                      {result.validRows} valid | {result.rejectedRows} rejected
+                      {result.validRows} valides · {result.rejectedRows} rejetées
                     </div>
 
                     {firstError && (

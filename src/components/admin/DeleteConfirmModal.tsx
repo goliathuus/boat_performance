@@ -17,30 +17,30 @@ export function DeleteConfirmModal({
   message,
   onConfirm,
   onCancel,
-  confirmLabel = 'Delete',
-  cancelLabel = 'Cancel',
+  confirmLabel = 'Supprimer',
+  cancelLabel = 'Annuler',
   variant = 'event',
 }: DeleteConfirmModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50">
-      <div className="bg-background border rounded-lg shadow-lg p-6 max-w-md w-full mx-4">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="glass rounded-2xl border shadow-2xl p-6 max-w-md w-full mx-4">
         <h2 className="text-xl font-semibold mb-4">{title}</h2>
         <p className="text-muted-foreground mb-6">{message}</p>
         
         {variant === 'event' && (
-          <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+          <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
             <p className="text-sm text-destructive">
-              <strong>Warning:</strong> This will stop all telemetry writes for this event and make all associated sessions unavailable for replay.
+              <strong>Attention :</strong> l’événement n’acceptera plus aucune donnée et ses sessions ne pourront plus être rejouées.
             </p>
           </div>
         )}
 
         {variant === 'session' && (
-          <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+          <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
             <p className="text-sm text-destructive">
-              <strong>Warning:</strong> This session will be permanently deleted and will no longer be available for replay.
+              <strong>Attention :</strong> la session sera définitivement supprimée et ne pourra plus être rejouée.
             </p>
           </div>
         )}

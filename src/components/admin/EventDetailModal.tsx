@@ -9,7 +9,7 @@ import type { AdminSession } from '@/domain/types';
 
 function formatDateTime(dateString: string): string {
   const date = new Date(dateString);
-  return date.toLocaleString('en-US', {
+  return date.toLocaleString('fr-FR', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -64,7 +64,7 @@ export function EventDetailModal({
       const data = await getEventSessions(eventId);
       setSessions(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load sessions');
+      setError(err instanceof Error ? err.message : 'Impossible de charger les sessions');
     } finally {
       setLoading(false);
     }
@@ -84,7 +84,7 @@ export function EventDetailModal({
       setShowDeleteConfirm(false);
       setSessionToDelete(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete session');
+      setError(err instanceof Error ? err.message : 'Impossible de supprimer la session');
       setShowDeleteConfirm(false);
     }
   };
@@ -93,8 +93,8 @@ export function EventDetailModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50">
-        <div className="bg-background border rounded-lg shadow-lg p-6 max-w-4xl w-full mx-4 max-h-[80vh] flex flex-col">
+      <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="glass rounded-2xl border shadow-2xl p-6 max-w-4xl w-full mx-4 max-h-[80vh] flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-2xl font-semibold">{eventTitle}</h2>
@@ -137,17 +137,17 @@ export function EventDetailModal({
                     onReplayMultiple(sessionIds);
                   }}
                 >
-                  Replay All ({sessions.length})
+                  Tout rejouer ({sessions.length})
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={onClose}>
-                Close
+                Fermer
               </Button>
             </div>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-destructive/10 text-destructive rounded-md text-sm">
+            <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
               {error}
             </div>
           )}
@@ -155,47 +155,38 @@ export function EventDetailModal({
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="text-center py-8 text-muted-foreground">
-                Loading sessions...
+                Chargement des sessions…
               </div>
             ) : sessions.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No sessions found for this event.
+                Aucune session dans cet événement.
               </div>
             ) : (
               <div className="space-y-2">
                 {sessions.map((session) => (
                   <div
                     key={session.id}
-                    className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
+                    className="rounded-xl border border-foreground/10 bg-background/40 p-4 transition-colors hover:border-foreground/20"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold mb-2">{session.name}</div>
                         <div className="space-y-1 text-sm text-muted-foreground">
                           <div>
-                            <span className="font-medium">Started:</span>{' '}
+                            <span className="font-medium">Début :</span>{' '}
                             {formatDateTime(session.started_at)}
                           </div>
                           {session.ended_at && (
                             <div>
-                              <span className="font-medium">Ended:</span>{' '}
+                              <span className="font-medium">Fin :</span>{' '}
                               {formatDateTime(session.ended_at)}
-                            </div>
-                          )}
-                          {/* Display telemetry count */}
-                          {session.telemetry_count !== undefined && (
-                            <div>
-                              <span className="font-medium">Data points:</span>{' '}
-                              <span className="font-mono">
-                                {session.telemetry_count.toLocaleString()}
-                              </span>
                             </div>
                           )}
                           
                           {/* Fallback: show boat_id if no display name */}
                           {session.boat_id && !session.boat_display_name && (
                             <div>
-                              <span className="font-medium">Boat ID:</span>{' '}
+                              <span className="font-medium">ID bateau :</span>{' '}
                               <span className="font-mono text-xs">{session.boat_id}</span>
                             </div>
                           )}
@@ -204,8 +195,8 @@ export function EventDetailModal({
                         {/* Visual badges for statistics */}
                         <div className="flex gap-2 mt-2 flex-wrap">
                           {session.telemetry_count !== undefined && session.telemetry_count > 0 && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-md bg-blue-500/10 text-blue-700 dark:text-blue-300 text-xs font-medium">
-                              📊 {session.telemetry_count.toLocaleString()} points
+                            <span className="inline-flex items-center rounded-full bg-sky-400/15 px-2 py-0.5 text-[11px] font-medium text-sky-300 ring-1 ring-inset ring-sky-400/30 tabular-nums">
+                              {session.telemetry_count.toLocaleString('fr-FR')} points GPS
                             </span>
                           )}
                         </div>
@@ -217,14 +208,15 @@ export function EventDetailModal({
                           size="sm"
                           onClick={() => onReplay(session.id)}
                         >
-                          Replay
+                          Rejouer
                         </Button>
                         <Button
-                          variant="destructive"
+                          variant="ghost"
                           size="sm"
+                          className="text-destructive hover:bg-destructive/15 hover:text-destructive"
                           onClick={() => handleDeleteClick(session)}
                         >
-                          Delete
+                          Supprimer
                         </Button>
                       </div>
                     </div>
@@ -238,8 +230,8 @@ export function EventDetailModal({
 
       <DeleteConfirmModal
         isOpen={showDeleteConfirm}
-        title="Delete Session"
-        message={`Are you sure you want to delete the session "${sessionToDelete?.name}"? This action cannot be undone.`}
+        title="Supprimer la session"
+        message={`Supprimer la session « ${sessionToDelete?.name} » ? Cette action est définitive.`}
         onConfirm={handleDeleteConfirm}
         onCancel={() => {
           setShowDeleteConfirm(false);

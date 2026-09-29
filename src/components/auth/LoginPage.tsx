@@ -1,108 +1,53 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { StravaSubmitCallout } from '@/components/StravaSubmitCallout';
+import { WindBackdrop } from '@/components/ui/WindBackdrop';
+import { BrandWordmark, Credits } from '@/components/ui/brand';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 interface LoginPageProps {
   onLoginSuccess: () => void;
 }
 
-// SVG Components
-function CompassIcon() {
+const FEATURES: Array<{ icon: ReactNode; title: string; text: string }> = [
+  {
+    icon: (
+      <path d="M4 17c3-6 6-8 9-6s5 1 7-3M4 17h.01M20 8h.01" />
+    ),
+    title: 'Replay de toute la flotte',
+    text: 'Traces GPS interpolées, lecture fluide jusqu’à ×500.',
+  },
+  {
+    icon: (
+      <>
+        <path d="M3 8h11a3 3 0 1 0-3-3" />
+        <path d="M3 12h16a3 3 0 1 1-3 3" />
+        <path d="M3 16h7" />
+      </>
+    ),
+    title: 'Le vent du jour',
+    text: 'AROME 1,3 km au quart d’heure ou ECMWF, consultable point par point.',
+  },
+  {
+    icon: (
+      <>
+        <path d="M3 3v18h18" />
+        <path d="M7 14l4-4 3 3 6-6" />
+      </>
+    ),
+    title: 'Classements',
+    text: 'Au temps ou entre deux portes que vous tracez sur la carte.',
+  },
+];
+
+function FeatureIcon({ children }: { children: ReactNode }) {
   return (
-    <svg
-      className="w-24 h-24 text-white/80"
-      viewBox="0 0 100 100"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="2" fill="none" />
-      <circle cx="50" cy="50" r="3" fill="currentColor" />
-      <line x1="50" y1="5" x2="50" y2="20" stroke="currentColor" strokeWidth="2" />
-      <line x1="50" y1="80" x2="50" y2="95" stroke="currentColor" strokeWidth="2" />
-      <line x1="5" y1="50" x2="20" y2="50" stroke="currentColor" strokeWidth="2" />
-      <line x1="80" y1="50" x2="95" y2="50" stroke="currentColor" strokeWidth="2" />
-      <text x="50" y="35" textAnchor="middle" fontSize="12" fill="currentColor" fontWeight="bold">N</text>
-      <path
-        d="M 50 20 L 45 35 L 50 30 L 55 35 Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-function SailboatIcon() {
-  return (
-    <svg
-      className="w-32 h-32 text-white/70"
-      viewBox="0 0 200 200"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* Hull */}
-      <path
-        d="M 30 150 Q 100 140 170 150 L 170 180 L 30 180 Z"
-        fill="currentColor"
-        opacity="0.9"
-      />
-      {/* Mast */}
-      <line x1="100" y1="150" x2="100" y2="50" stroke="currentColor" strokeWidth="3" />
-      {/* Sail */}
-      <path
-        d="M 100 50 L 100 150 L 160 120 Z"
-        fill="currentColor"
-        opacity="0.8"
-      />
-      {/* Wind lines */}
-      <path
-        d="M 20 80 Q 40 75 60 80"
-        stroke="currentColor"
-        strokeWidth="2"
-        fill="none"
-        opacity="0.6"
-      />
-      <path
-        d="M 20 100 Q 40 95 60 100"
-        stroke="currentColor"
-        strokeWidth="2"
-        fill="none"
-        opacity="0.6"
-      />
-    </svg>
-  );
-}
-
-function AnimatedMetric({ label, value, unit, color = 'text-blue-300' }: { label: string; value: number; unit: string; color?: string }) {
-  const [displayValue, setDisplayValue] = useState(0);
-
-  useEffect(() => {
-    const duration = 2000;
-    const steps = 60;
-    const increment = value / steps;
-    const stepDuration = duration / steps;
-    let current = 0;
-    let step = 0;
-
-    const timer = setInterval(() => {
-      step++;
-      current = Math.min(increment * step, value);
-      setDisplayValue(current);
-      if (step >= steps) {
-        clearInterval(timer);
-      }
-    }, stepDuration);
-
-    return () => clearInterval(timer);
-  }, [value]);
-
-  return (
-    <div className="text-center">
-      <div className={`text-3xl font-bold ${color} mb-1`}>
-        {displayValue.toFixed(1)}
-        <span className="text-lg ml-1">{unit}</span>
-      </div>
-      <div className="text-sm text-white/70 uppercase tracking-wider">{label}</div>
-    </div>
+    <span className="grid h-9 w-9 flex-none place-items-center rounded-lg bg-primary/15 text-primary ring-1 ring-inset ring-primary/25">
+      <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {children}
+      </svg>
+    </span>
   );
 }
 
@@ -213,237 +158,166 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
     }
   };
 
+
+  const switchMode = (signUp: boolean) => {
+    setIsSignUp(signUp);
+    setError(null);
+    setSuccessMessage(null);
+    if (!signUp) {
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+    }
+  };
+
   if (checkingSession) {
     return (
-      <div className="w-screen app-shell flex items-center justify-center bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700">
-        <div className="text-lg text-white">Checking session...</div>
+      <div className="relative w-screen app-shell flex items-center justify-center">
+        <WindBackdrop />
+        <LoadingSpinner size="lg" text="Vérification de la session…" className="relative" />
       </div>
     );
   }
 
   return (
-    <div className="w-screen app-shell flex flex-col md:flex-row overflow-hidden relative">
-      {/* Animated Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-blue-600 to-blue-800 animate-gradient" style={{ backgroundSize: '200% 200%' }} />
-      
-      {/* Waves */}
-      <div className="absolute bottom-0 left-0 right-0 overflow-hidden">
-        <div className="wave" />
-        <div className="wave" />
-        <div className="wave" />
-      </div>
+    <div className="relative w-screen app-shell flex flex-col overflow-y-auto overflow-x-hidden">
+      <WindBackdrop intensity={1.2} className="fixed" />
 
-      {/* Left Section - Visuals (Desktop only) */}
-      <div className="hidden md:flex flex-1 flex-col items-center justify-center p-12 relative z-10">
-        <div className="max-w-lg w-full space-y-8">
-          {/* Hero Content */}
-          <div className="text-center space-y-4 animate-slideInRight">
-            <h1 className="text-5xl font-bold text-white mb-2">
-              Boat Tracker
+      <div className="relative mx-auto grid w-full flex-1 max-w-6xl grid-cols-1 items-center gap-10 px-5 py-10 md:grid-cols-[1.1fr_1fr] md:gap-16 md:px-10">
+        {/* Accroche */}
+        <section className="space-y-8">
+          <BrandWordmark />
+          <div className="space-y-4">
+            <h1 className="text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-5xl">
+              Rejouez vos courses.
+              <br />
+              <span className="bg-gradient-to-r from-sky-300 via-cyan-200 to-emerald-200 bg-clip-text text-transparent">
+                Lisez le vent.
+              </span>
             </h1>
-            <p className="text-xl text-white/90">
-              Analysez vos performances, optimisez votre navigation
+            <p className="max-w-md text-base text-muted-foreground sm:text-lg">
+              Traces, vitesses et vent modélisé réunis sur une même carte, pour comprendre chaque bord.
             </p>
           </div>
+          <ul className="hidden space-y-4 md:block">
+            {FEATURES.map((f) => (
+              <li key={f.title} className="flex items-start gap-3">
+                <FeatureIcon>{f.icon}</FeatureIcon>
+                <div>
+                  <div className="text-sm font-medium text-foreground">{f.title}</div>
+                  <div className="text-sm text-muted-foreground">{f.text}</div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
 
-          {/* Icons */}
-          <div className="flex items-center justify-center gap-12 mt-12">
-            <CompassIcon />
-            <SailboatIcon />
-          </div>
-
-          {/* Performance Metrics */}
-          <div className="grid grid-cols-3 gap-6 mt-16">
-            <AnimatedMetric label="Vitesse" value={12.5} unit="kn" color="text-green-300" />
-            <AnimatedMetric label="Distance" value={45.2} unit="nm" color="text-blue-300" />
-            <AnimatedMetric label="Temps" value={3.8} unit="h" color="text-cyan-300" />
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile Hero (only on mobile) */}
-      <div className="md:hidden flex flex-col items-center justify-center pt-12 pb-6 relative z-10">
-        <h1 className="text-4xl font-bold text-white mb-2 text-center">
-          Boat Tracker
-        </h1>
-        <p className="text-lg text-white/90 text-center px-4">
-          Analysez vos performances, optimisez votre navigation
-        </p>
-      </div>
-
-      {/* Right Section - Form */}
-      <div className="flex-1 flex items-center justify-center p-6 md:p-12 pb-24 relative z-10 overflow-y-auto">
-        <div className="w-full max-w-md animate-slideInRight">
-          {/* Glassmorphism Card */}
-          <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl shadow-2xl p-6 md:p-10">
-            <div className="text-center mb-6 md:mb-8">
-              <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+        {/* Formulaire */}
+        <section className="w-full md:justify-self-end md:max-w-md">
+          <div className="glass rounded-2xl border p-6 sm:p-8">
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-foreground">
                 {isSignUp ? 'Créer un compte' : 'Connexion'}
               </h2>
-              <p className="text-white/80 text-sm">
-                {isSignUp ? 'Rejoignez la communauté' : 'Accédez à vos données'}
+              <p className="mt-1 text-sm text-muted-foreground">
+                {isSignUp ? 'Rejoignez la communauté.' : 'Accédez à vos sessions et replays.'}
               </p>
             </div>
-            
+
             {error && (
-              <div className="mb-4 p-4 bg-red-500/20 border border-red-500/50 text-red-100 rounded-lg text-sm backdrop-blur-sm">
+              <div role="alert" className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive">
                 {error}
               </div>
             )}
 
             {successMessage && (
-              <div className="mb-4 p-4 bg-green-500/20 border border-green-500/50 text-green-100 rounded-lg text-sm backdrop-blur-sm">
+              <div role="status" className="mb-4 rounded-lg border border-emerald-400/40 bg-emerald-400/10 px-3.5 py-2.5 text-sm text-emerald-200">
                 {successMessage}
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-white/90 mb-2">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label htmlFor="email" className="text-xs font-medium text-muted-foreground">
                   Email
                 </label>
                 <input
                   id="email"
                   type="email"
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent backdrop-blur-sm transition-all"
-                  placeholder="your@email.com"
+                  className="field"
+                  placeholder="vous@exemple.fr"
                 />
               </div>
 
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-white/90 mb-2">
+              <div className="space-y-1.5">
+                <label htmlFor="password" className="text-xs font-medium text-muted-foreground">
                   Mot de passe
                 </label>
                 <input
                   id="password"
                   type="password"
+                  autoComplete={isSignUp ? 'new-password' : 'current-password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent backdrop-blur-sm transition-all"
+                  className="field"
                   placeholder="••••••••"
                 />
               </div>
 
               {isSignUp && (
-                <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-white/90 mb-2">
+                <div className="space-y-1.5">
+                  <label htmlFor="confirmPassword" className="text-xs font-medium text-muted-foreground">
                     Confirmer le mot de passe
                   </label>
                   <input
                     id="confirmPassword"
                     type="password"
+                    autoComplete="new-password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent backdrop-blur-sm transition-all"
+                    className="field"
                     placeholder="••••••••"
                   />
                 </div>
               )}
 
-              <Button
-                type="submit"
-                className="w-full bg-white text-blue-600 hover:bg-white/90 font-semibold py-3 text-lg transition-all shadow-lg"
-                disabled={loading}
-              >
-                {loading 
-                  ? (isSignUp ? 'Création du compte...' : 'Connexion...') 
-                  : (isSignUp ? 'S\'inscrire' : 'Se connecter')
-                }
+              <Button type="submit" className="h-11 w-full rounded-lg text-[15px] font-semibold shadow-lg shadow-primary/20" disabled={loading}>
+                {loading
+                  ? (isSignUp ? 'Création du compte…' : 'Connexion…')
+                  : (isSignUp ? 'S’inscrire' : 'Se connecter')}
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
-              {isSignUp ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsSignUp(false);
-                    setError(null);
-                    setSuccessMessage(null);
-                    setEmail('');
-                    setPassword('');
-                    setConfirmPassword('');
-                  }}
-                  className="text-sm text-white/80 hover:text-white underline transition-colors"
-                >
-                  Déjà un compte ? Se connecter
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsSignUp(true);
-                    setError(null);
-                    setSuccessMessage(null);
-                  }}
-                  className="text-sm text-white/80 hover:text-white underline transition-colors"
-                >
-                  Pas encore de compte ? S'inscrire
-                </button>
-              )}
-            </div>
+            <p className="mt-5 text-center text-sm text-muted-foreground">
+              {isSignUp ? 'Déjà un compte ?' : 'Pas encore de compte ?'}{' '}
+              <button
+                type="button"
+                onClick={() => switchMode(!isSignUp)}
+                className="font-medium text-primary transition-colors hover:text-primary/80"
+              >
+                {isSignUp ? 'Se connecter' : 'S’inscrire'}
+              </button>
+            </p>
 
-            <div className="mt-5 pt-5 border-t border-white/20">
+            <div className="mt-6 flex items-center gap-3 text-[11px] uppercase tracking-wider text-muted-foreground/70">
+              <span className="h-px flex-1 bg-foreground/10" />
+              ou
+              <span className="h-px flex-1 bg-foreground/10" />
+            </div>
+            <div className="mt-4">
               <StravaSubmitCallout variant="login" />
             </div>
           </div>
-        </div>
-
-        {/* Footer - SH Course au large credits */}
-        <div className="absolute bottom-6 left-0 right-0 z-20 flex justify-center">
-          <div className="backdrop-blur-sm bg-white/10 border border-white/20 rounded-lg px-6 py-3 flex items-center gap-4">
-            <span className="text-white/90 text-sm">Développé par</span>
-            <a
-              href="https://www.sh-courseaularge.fr/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-white hover:text-white/80 underline transition-colors font-semibold"
-            >
-              SH Course au large
-            </a>
-            <div className="flex items-center gap-3">
-              <a
-                href="https://www.instagram.com/sh_course_au_large_mini650?igsh=anh0bnY4b3Rnb2o0"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-white hover:text-white/80 transition-colors"
-                title="Suivez-nous sur Instagram"
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                </svg>
-              </a>
-              <a
-                href="https://www.sh-courseaularge.fr/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-white hover:text-white/80 transition-colors"
-                title="Visitez notre site web"
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-                </svg>
-              </a>
-            </div>
-          </div>
-        </div>
+        </section>
       </div>
+
+      <Credits className="relative pb-6 safe-bottom" />
     </div>
   );
 }

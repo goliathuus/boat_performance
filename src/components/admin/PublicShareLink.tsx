@@ -36,7 +36,7 @@ export function PublicShareLink({
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      setError('Failed to copy link');
+      setError('Impossible de copier le lien');
     }
   };
 
@@ -49,7 +49,7 @@ export function PublicShareLink({
       setLocalShareEnabled(result.share_enabled);
       onUpdated?.({ share_token: result.share_token, share_enabled: result.share_enabled });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to regenerate link');
+      setError(err instanceof Error ? err.message : 'Impossible de régénérer le lien');
     } finally {
       setLoading(false);
     }
@@ -64,7 +64,7 @@ export function PublicShareLink({
       setLocalShareEnabled(result.share_enabled);
       onUpdated?.({ share_token: result.share_token, share_enabled: result.share_enabled });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update share status');
+      setError(err instanceof Error ? err.message : 'Impossible de modifier le partage');
     } finally {
       setLoading(false);
     }
@@ -74,13 +74,13 @@ export function PublicShareLink({
     return (
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <Button size="sm" variant="outline" onClick={handleCopy}>
-          {copied ? 'Copied' : 'Copy public link'}
+          {copied ? 'Lien copié' : 'Copier le lien public'}
         </Button>
         <Button size="sm" variant="outline" onClick={() => window.open(shareUrl, '_blank', 'noopener,noreferrer')}>
-          Open
+          Ouvrir
         </Button>
-        <span className={`text-xs ${localShareEnabled ? 'text-green-600' : 'text-amber-600'}`}>
-          {localShareEnabled ? 'Public link enabled' : 'Public link disabled'}
+        <span className={`text-xs ${localShareEnabled ? 'text-emerald-300' : 'text-amber-300'}`}>
+          {localShareEnabled ? 'Lien public actif' : 'Lien public désactivé'}
         </span>
         {error && <span className="text-xs text-destructive">{error}</span>}
       </div>
@@ -88,25 +88,25 @@ export function PublicShareLink({
   }
 
   return (
-    <div className="border rounded-md p-3 space-y-2 bg-muted/20">
-      <div className="text-sm font-medium">Public link</div>
+    <div className="rounded-lg border border-foreground/10 bg-background/40 p-3 space-y-2">
+      <div className="text-sm font-medium">Lien public</div>
       <div className="text-xs font-mono break-all">{shareUrl}</div>
       <div className="flex flex-wrap gap-2">
         <Button size="sm" variant="outline" onClick={handleCopy}>
-          {copied ? 'Copied' : 'Copy'}
+          {copied ? 'Copié' : 'Copier'}
         </Button>
         <Button size="sm" variant="outline" onClick={() => window.open(shareUrl, '_blank', 'noopener,noreferrer')}>
-          Open
+          Ouvrir
         </Button>
         <Button size="sm" variant="outline" onClick={handleRegenerate} disabled={loading}>
-          Regenerate
+          Régénérer
         </Button>
         <Button size="sm" variant="outline" onClick={handleToggle} disabled={loading}>
-          {localShareEnabled ? 'Disable' : 'Enable'}
+          {localShareEnabled ? 'Désactiver' : 'Activer'}
         </Button>
       </div>
-      <div className={`text-xs ${localShareEnabled ? 'text-green-600' : 'text-amber-600'}`}>
-        {localShareEnabled ? 'Link enabled' : 'Link disabled'}
+      <div className={`text-xs ${localShareEnabled ? 'text-emerald-300' : 'text-amber-300'}`}>
+        {localShareEnabled ? 'Lien actif' : 'Lien désactivé'}
       </div>
       {error && <div className="text-xs text-destructive">{error}</div>}
     </div>

@@ -5,6 +5,8 @@ import { CreateEventForm } from './CreateEventForm';
 import { EventDetailModal } from './EventDetailModal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { Button } from '@/components/ui/button';
+import { WindBackdrop } from '@/components/ui/WindBackdrop';
+import { PageHeader } from '@/components/ui/brand';
 import type { EventWithStats } from '@/domain/types';
 
 interface AdminSessionsPageProps {
@@ -35,7 +37,7 @@ export function AdminSessionsPage({ onBack, onReplay, onReplayMultiple, onLogout
       const data = await getAdminEvents();
       setEvents(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load events');
+      setError(err instanceof Error ? err.message : 'Impossible de charger les événements');
     } finally {
       setLoading(false);
     }
@@ -63,7 +65,7 @@ export function AdminSessionsPage({ onBack, onReplay, onReplayMultiple, onLogout
       await stopEvent(eventId);
       await loadEvents(); // Reload to update status
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to stop event');
+      setError(err instanceof Error ? err.message : 'Impossible d’arrêter l’événement');
     }
   };
 
@@ -84,38 +86,39 @@ export function AdminSessionsPage({ onBack, onReplay, onReplayMultiple, onLogout
       setEventToDelete(null);
       await loadEvents(); // Reload events list
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete event');
+      setError(err instanceof Error ? err.message : 'Impossible de supprimer l’événement');
       setShowDeleteConfirm(false);
     }
   };
 
   return (
-    <div className="w-screen app-shell overflow-hidden flex flex-col bg-background">
-      {/* Header */}
-      <div className="border-b p-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Gestion des Sessions (Admin)</h1>
-          <p className="text-sm text-muted-foreground">Manage events and sessions</p>
-        </div>
-        <div className="flex gap-2">
-          {!showCreateForm && (
-            <Button onClick={() => setShowCreateForm(true)}>
-              + Create Event
+    <div className="relative w-screen app-shell overflow-hidden flex flex-col">
+      <WindBackdrop intensity={0.5} />
+      <PageHeader
+        title="Gestion des événements"
+        subtitle="Créez les événements, partagez-les et gérez leurs sessions."
+        actions={
+          <>
+            {!showCreateForm && (
+              <Button size="sm" onClick={() => setShowCreateForm(true)}>
+                + Nouvel événement
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={onBack}>
+              ← Sessions
             </Button>
-          )}
-          <Button variant="outline" onClick={onBack}>
-            ← Retour au replay
-          </Button>
-          {onLogout && (
-            <Button variant="outline" onClick={onLogout}>
-              Déconnexion
-            </Button>
-          )}
-        </div>
-      </div>
+            {onLogout && (
+              <Button variant="ghost" size="sm" onClick={onLogout}>
+                Déconnexion
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="relative flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="mx-auto max-w-6xl">
         {showCreateForm ? (
           <div className="max-w-2xl mx-auto">
             <div className="mb-6">
@@ -123,7 +126,7 @@ export function AdminSessionsPage({ onBack, onReplay, onReplayMultiple, onLogout
                 ← Retour aux événements
               </Button>
             </div>
-            <div className="bg-background border rounded-lg p-6">
+            <div className="glass rounded-2xl border p-6">
               <h2 className="text-xl font-semibold mb-4">Créer un événement</h2>
               <CreateEventForm
                 onSuccess={handleCreateSuccess}
@@ -134,7 +137,7 @@ export function AdminSessionsPage({ onBack, onReplay, onReplayMultiple, onLogout
         ) : (
           <>
             {error && (
-              <div className="mb-4 p-4 bg-destructive/10 text-destructive rounded-md">
+              <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-destructive">
                 {error}
               </div>
             )}
@@ -149,6 +152,7 @@ export function AdminSessionsPage({ onBack, onReplay, onReplayMultiple, onLogout
             />
           </>
         )}
+        </div>
       </div>
 
       {/* Event Detail Modal */}
@@ -173,8 +177,8 @@ export function AdminSessionsPage({ onBack, onReplay, onReplayMultiple, onLogout
       {/* Delete Confirmation Modal */}
       <DeleteConfirmModal
         isOpen={showDeleteConfirm}
-        title="Delete Event"
-        message={`Are you sure you want to delete the event "${eventToDelete?.title}"? This will stop all telemetry writes and make all associated sessions unavailable.`}
+        title="Supprimer l’événement"
+        message={`Supprimer l’événement « ${eventToDelete?.title} » ?`}
         onConfirm={handleDeleteConfirm}
         onCancel={() => {
           setShowDeleteConfirm(false);

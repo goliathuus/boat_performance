@@ -11,6 +11,9 @@ import { downloadCSV, generateCSVFilename } from '@/lib/csv-download';
 import { determineSessionEndTime } from '@/lib/session-utils';
 import { CsvLoadModal } from './CsvLoadModal';
 import { StravaSubmitCallout } from '@/components/StravaSubmitCallout';
+import { WindBackdrop } from '@/components/ui/WindBackdrop';
+import { Credits, GlassCard, PageHeader, StatusPill } from '@/components/ui/brand';
+import { cn } from '@/lib/utils';
 
 type TabType = 'events' | 'sessions';
 
@@ -200,274 +203,219 @@ export function UnifiedSessionPicker({
     }
   };
 
-  const getStatusColor = (status: 'active' | 'expired' | 'upcoming') => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-500';
-      case 'expired':
-        return 'bg-gray-500';
-      case 'upcoming':
-        return 'bg-blue-500';
-    }
-  };
+  const selectedCount = selectedSessionIds.size;
 
-  const getStatusLabel = (status: 'active' | 'expired' | 'upcoming') => {
-    switch (status) {
-      case 'active':
-        return 'Active';
-      case 'expired':
-        return 'Expired';
-      case 'upcoming':
-        return 'Upcoming';
-    }
+  const tabButton = (tab: TabType, label: string) => (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={activeTab === tab}
+      onClick={() => setActiveTab(tab)}
+      className={cn(
+        'rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors',
+        activeTab === tab
+          ? 'bg-primary text-primary-foreground shadow'
+          : 'text-muted-foreground hover:text-foreground'
+      )}
+    >
+      {label}
+    </button>
+  );
+
+  const sessionRow = (session: { id: string; name: string; started_at: string; ended_at?: string | null }) => {
+    const checked = selectedSessionIds.has(session.id);
+    return (
+      <label
+        key={session.id}
+        className={cn(
+          'group flex cursor-pointer items-center gap-3 rounded-lg border px-3.5 py-2.5 transition-colors',
+          checked ? 'border-primary/50 bg-primary/10' : 'border-foreground/10 bg-background/40 hover:border-foreground/20'
+        )}
+      >
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={() => handleSessionToggle(session.id)}
+          className="h-4 w-4 flex-none accent-primary"
+        />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-medium">{session.name}</div>
+          <div className="text-xs text-muted-foreground tabular-nums">
+            {formatRange(session.started_at, session.ended_at ?? null)}
+          </div>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 flex-none text-muted-foreground hover:text-foreground"
+          onClick={(e) => {
+            e.preventDefault();
+            handleExportSession(session.id, session.name);
+          }}
+          disabled={exportingSessionId === session.id}
+          title="Exporter la session en CSV"
+          aria-label={`Exporter ${session.name} en CSV`}
+        >
+          {exportingSessionId === session.id ? '…' : <DownloadIcon />}
+        </Button>
+      </label>
+    );
   };
 
   return (
-    <div className="w-screen app-shell overflow-hidden flex flex-col bg-background">
-      {/* Header with tabs */}
-      <div className="border-b p-3 sm:p-4">
-        <div className="flex flex-col gap-3 mb-3 sm:mb-4 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-lg sm:text-2xl font-semibold truncate">Choisir les sessions à rejouer</h1>
-          <div className="flex flex-wrap gap-2">
+    <div className="relative w-screen app-shell overflow-hidden flex flex-col">
+      <WindBackdrop intensity={0.6} />
+
+      <PageHeader
+        title="Sessions à rejouer"
+        subtitle="Choisissez un événement ou des sessions, puis lancez le replay."
+        actions={
+          <>
             <StravaSubmitCallout variant="header" />
             {isAdmin && onOpenAdmin && (
               <Button variant="outline" size="sm" onClick={onOpenAdmin}>
-                Gestion des sessions
+                Gestion
               </Button>
             )}
             {onLogout && (
-              <Button variant="outline" size="sm" onClick={onLogout}>
+              <Button variant="ghost" size="sm" onClick={onLogout}>
                 Déconnexion
               </Button>
             )}
-          </div>
+          </>
+        }
+      >
+        <div role="tablist" className="mb-3 inline-flex rounded-full border bg-background/50 p-1">
+          {tabButton('events', 'Événements')}
+          {tabButton('sessions', 'Toutes les sessions')}
         </div>
+      </PageHeader>
 
-        {/* Tabs */}
-        <div className="flex gap-2 border-b">
-          <button
-            onClick={() => setActiveTab('events')}
-            className={`px-4 py-2 font-medium transition-colors ${
-              activeTab === 'events'
-                ? 'border-b-2 border-primary text-primary'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Événements
-          </button>
-          <button
-            onClick={() => setActiveTab('sessions')}
-            className={`px-4 py-2 font-medium transition-colors ${
-              activeTab === 'sessions'
-                ? 'border-b-2 border-primary text-primary'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Toutes les sessions
-          </button>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-hidden flex">
-        {/* Main content area */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-6">
+      <main className="relative flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-6xl space-y-3 p-4 sm:p-6">
           {activeTab === 'events' && (
-            <div className="space-y-4">
+            <>
               {eventsLoading && (
-                <div className="text-center py-8">
+                <div className="py-12">
                   <LoadingSpinner size="lg" text="Chargement des événements…" />
                 </div>
               )}
 
               {!eventsLoading && events.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  Aucun événement
-                </div>
+                <EmptyState text="Aucun événement pour l’instant." />
               )}
 
-              {!eventsLoading && events.length > 0 && (
-                <div className="space-y-4">
-                  {events.map((event) => {
-                    const isExpanded = expandedEvents.has(event.id);
-                    const isLoadingSessions = selectedEventId === event.id && eventSessionsLoading;
+              {!eventsLoading &&
+                events.map((event) => {
+                  const isExpanded = expandedEvents.has(event.id);
+                  const isLoadingSessions = selectedEventId === event.id && eventSessionsLoading;
 
-                    return (
+                  return (
+                    <GlassCard
+                      key={event.id}
+                      className={cn(
+                        'overflow-hidden transition-colors',
+                        isExpanded ? 'border-primary/40' : 'hover:border-foreground/20'
+                      )}
+                    >
                       <div
-                        key={event.id}
-                        className="border rounded-lg overflow-hidden"
+                        role="button"
+                        tabIndex={0}
+                        aria-expanded={isExpanded}
+                        className="flex cursor-pointer items-center gap-4 p-4 sm:p-5"
+                        onClick={() => handleEventClick(event.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleEventClick(event.id);
+                          }
+                        }}
                       >
-                        <div
-                          className="p-4 hover:bg-muted/50 transition-colors cursor-pointer"
-                          onClick={() => handleEventClick(event.id)}
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <h3 className="font-semibold text-lg">{event.title}</h3>
-                                <span
-                                  className={`px-2 py-1 rounded text-xs text-white ${getStatusColor(event.status)}`}
-                                >
-                                  {getStatusLabel(event.status)}
-                                </span>
-                              </div>
-                              <div className="text-sm text-muted-foreground space-y-1">
-                                <div>
-                                  <span className="font-medium">Début</span>{' '}
-                                  {new Date(event.starts_at).toLocaleString()}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Fin</span>{' '}
-                                  {new Date(event.ends_at).toLocaleString()}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Sessions</span> {event.session_count}
-                                </div>
-                                <div className="font-mono text-xs mt-1">{event.code}</div>
-                              </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => handleExportEvent(event.id, event.code, e)}
-                                disabled={exportingEventId === event.id}
-                                title="Exporter toutes les sessions en CSV"
-                              >
-                                {exportingEventId === event.id ? '…' : <DownloadIcon />}
-                              </Button>
-                              {isExpanded && eventSessions.length > 0 && (
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleReplayAllEventSessions();
-                                  }}
-                                >
-                                  Tout rejouer
-                                </Button>
-                              )}
-                            </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2.5">
+                            <h3 className="truncate text-base font-semibold sm:text-lg">{event.title}</h3>
+                            <StatusPill status={event.status} />
+                          </div>
+                          <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground tabular-nums">
+                            <span>{formatRange(event.starts_at, event.ends_at)}</span>
+                            <span>
+                              {event.session_count} session{event.session_count > 1 ? 's' : ''}
+                            </span>
+                            <span className="rounded bg-foreground/5 px-1.5 py-0.5 font-mono text-[11px] text-foreground/70">
+                              {event.code}
+                            </span>
                           </div>
                         </div>
-
-                        {isExpanded && (
-                          <div className="border-t bg-muted/30">
-                            {isLoadingSessions ? (
-                              <div className="p-4 text-center">
-                                <LoadingSpinner size="sm" text="Chargement des sessions…" />
-                              </div>
-                            ) : eventSessions.length === 0 ? (
-                              <div className="p-4 text-center text-muted-foreground">
-                                Aucune session dans cet événement
-                              </div>
-                            ) : (
-                              <div className="p-4 space-y-2">
-                                {eventSessions.map((session) => (
-                                  <div
-                                    key={session.id}
-                                    className="flex items-center gap-3 p-3 bg-background rounded border"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedSessionIds.has(session.id)}
-                                      onChange={() => handleSessionToggle(session.id)}
-                                      className="w-4 h-4"
-                                    />
-                                    <div className="flex-1">
-                                      <div className="font-medium">
-                                        {session.name}
-                                      </div>
-                                      <div className="text-sm text-muted-foreground">
-                                        {new Date(session.started_at).toLocaleString()}
-                                      </div>
-                                    </div>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleExportSession(session.id, session.name)}
-                                      disabled={exportingSessionId === session.id}
-                                    >
-                                      {exportingSessionId === session.id ? '…' : <DownloadIcon />}
-                                    </Button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
+                        <div className="flex flex-none items-center gap-2">
+                          {isExpanded && eventSessions.length > 0 && (
+                            <Button
+                              size="sm"
+                              className="rounded-full"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReplayAllEventSessions();
+                              }}
+                            >
+                              Tout rejouer
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 text-muted-foreground hover:text-foreground"
+                            onClick={(e) => handleExportEvent(event.id, event.code, e)}
+                            disabled={exportingEventId === event.id}
+                            title="Exporter toutes les sessions en CSV"
+                            aria-label={`Exporter ${event.title} en CSV`}
+                          >
+                            {exportingEventId === event.id ? '…' : <DownloadIcon />}
+                          </Button>
+                          <ChevronIcon open={isExpanded} />
+                        </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+
+                      {isExpanded && (
+                        <div className="border-t border-foreground/10 bg-background/30 p-3 sm:p-4">
+                          {isLoadingSessions ? (
+                            <LoadingSpinner size="sm" text="Chargement des sessions…" />
+                          ) : eventSessions.length === 0 ? (
+                            <div className="py-2 text-center text-sm text-muted-foreground">
+                              Aucune session dans cet événement
+                            </div>
+                          ) : (
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              {eventSessions.map((session) => sessionRow(session))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </GlassCard>
+                  );
+                })}
+            </>
           )}
 
           {activeTab === 'sessions' && (
-            <div className="space-y-4">
+            <>
               {allSessionsLoading && (
-                <div className="text-center py-8">
+                <div className="py-12">
                   <LoadingSpinner size="lg" text="Chargement des sessions…" />
                 </div>
               )}
 
-              {!allSessionsLoading && allSessions.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  Aucune session
-                </div>
-              )}
+              {!allSessionsLoading && allSessions.length === 0 && <EmptyState text="Aucune session." />}
 
               {!allSessionsLoading && allSessions.length > 0 && (
-                <div className="space-y-2">
-                  {allSessions.map((session) => (
-                    <div
-                      key={session.id}
-                      className="flex items-center gap-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedSessionIds.has(session.id)}
-                        onChange={() => handleSessionToggle(session.id)}
-                        className="w-4 h-4"
-                      />
-                      <div className="flex-1">
-                        <div className="text-sm text-muted-foreground">{session.name}</div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          <div>
-                            <span className="font-medium">Début</span>{' '}
-                            {new Date(session.started_at).toLocaleString()}
-                          </div>
-                          {session.ended_at && (
-                            <div>
-                              <span className="font-medium">Fin</span>{' '}
-                              {new Date(session.ended_at).toLocaleString()}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleExportSession(session.id, session.name)}
-                        disabled={exportingSessionId === session.id}
-                      >
-                        {exportingSessionId === session.id ? '…' : <DownloadIcon />}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
+                <div className="grid gap-2 sm:grid-cols-2">{allSessions.map((session) => sessionRow(session))}</div>
               )}
-            </div>
+            </>
           )}
         </div>
-      </div>
+      </main>
 
-      {/* Footer with action buttons */}
-      <div className="border-t p-3 sm:p-4 bg-background/95 backdrop-blur-sm">
-        <div className="flex flex-col gap-3 max-w-6xl mx-auto sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+      <footer className="glass relative border-t safe-bottom">
+        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="flex flex-wrap items-center gap-2">
             <Button onClick={() => setIsCsvModalOpen(true)} variant="outline" size="sm">
               Importer un CSV
             </Button>
@@ -476,48 +424,26 @@ export function UnifiedSessionPicker({
                 Agréger des CSV
               </Button>
             )}
-            {selectedSessionIds.size > 0 && (
-              <span className="text-sm text-muted-foreground">
-                {selectedSessionIds.size} session{selectedSessionIds.size !== 1 ? 's' : ''} sélectionnée
-                {selectedSessionIds.size !== 1 ? 's' : ''}
-              </span>
-            )}
+            <Credits className="hidden lg:flex lg:pl-3" />
           </div>
-          <Button
-            onClick={handleReplaySelected}
-            disabled={selectedSessionIds.size === 0}
-            size="lg"
-            className="w-full sm:w-auto"
-          >
-            Lancer le replay ({selectedSessionIds.size})
-          </Button>
+          <div className="flex items-center gap-3">
+            <span className="hidden text-sm text-muted-foreground sm:inline">
+              {selectedCount === 0
+                ? 'Aucune session sélectionnée'
+                : `${selectedCount} session${selectedCount > 1 ? 's' : ''} sélectionnée${selectedCount > 1 ? 's' : ''}`}
+            </span>
+            <Button
+              onClick={handleReplaySelected}
+              disabled={selectedCount === 0}
+              className="h-10 w-full rounded-full px-5 font-semibold shadow-lg shadow-primary/20 sm:w-auto"
+            >
+              <PlayIcon />
+              Lancer le replay{selectedCount > 0 ? ` (${selectedCount})` : ''}
+            </Button>
+          </div>
         </div>
-      </div>
-
-      {/* Footer credits */}
-      <div className="border-t p-2 bg-background/95 backdrop-blur-sm">
-        <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
-          <span>Développé par</span>
-          <a
-            href="https://www.sh-courseaularge.fr/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:text-primary/80 underline transition-colors font-medium"
-          >
-            SH Course au large
-          </a>
-          <span>•</span>
-          <a
-            href="https://www.instagram.com/sh_course_au_large_mini650?igsh=anh0bnY4b3Rnb2o0"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:text-primary/80 underline transition-colors"
-            title="Instagram SH Course au large"
-          >
-            Instagram
-          </a>
-        </div>
-      </div>
+        <Credits className="pb-2 lg:hidden" />
+      </footer>
 
       {/* CSV Load Modal */}
       <CsvLoadModal
@@ -532,3 +458,45 @@ export function UnifiedSessionPicker({
   );
 }
 
+function EmptyState({ text }: { text: string }) {
+  return (
+    <GlassCard className="px-6 py-12 text-center text-sm text-muted-foreground">{text}</GlassCard>
+  );
+}
+
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={cn('text-muted-foreground transition-transform', open && 'rotate-180')}
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
+
+function PlayIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="mr-1.5">
+      <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" />
+    </svg>
+  );
+}
+
+/** « 9 mai 2026 · 12:45 → 19:30 », ou deux dates completes si la plage change de jour. */
+function formatRange(start: string, end: string | null): string {
+  const s = new Date(start);
+  const day = (d: Date) => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+  const time = (d: Date) => d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  if (!end) return `${day(s)} · ${time(s)}`;
+  const e = new Date(end);
+  return day(s) === day(e) ? `${day(s)} · ${time(s)} → ${time(e)}` : `${day(s)} ${time(s)} → ${day(e)} ${time(e)}`;
+}

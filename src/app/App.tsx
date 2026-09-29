@@ -8,6 +8,8 @@ import { CsvAggregatorPage } from '@/components/replay/CsvAggregatorPage';
 import { useReplayStore } from '@/state/useReplayStore';
 import { determineSessionEndTime } from '@/lib/session-utils';
 import { PublicEventPage } from './PublicEventPage';
+import { WindBackdrop } from '@/components/ui/WindBackdrop';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 type AppPage = 'auth' | 'sessions' | 'replay' | 'admin' | 'csvAgg';
 
@@ -166,8 +168,9 @@ function AuthenticatedApp() {
   // Show loading while checking auth
   if (isCheckingAuth) {
     return (
-      <div className="w-screen app-shell flex items-center justify-center bg-background">
-        <div className="text-lg">Checking authentication...</div>
+      <div className="relative w-screen app-shell flex items-center justify-center">
+        <WindBackdrop />
+        <LoadingSpinner size="lg" text="Vérification de la session…" className="relative" />
       </div>
     );
   }

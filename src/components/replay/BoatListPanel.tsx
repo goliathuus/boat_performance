@@ -31,6 +31,7 @@ interface BoatListPanelProps {
 
 export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoat }: BoatListPanelProps) {
   const sessions = useReplayStore((state) => state.sessions);
+  const liveMode = useReplayStore((state) => state.liveMode);
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
   const hiddenSessionIds = useReplayStore((state) => state.hiddenSessionIds);
   const focusSessionId = useReplayStore((state) => state.focusSessionId);
@@ -58,7 +59,7 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
         if (!session) return null;
 
         // Check if session is active at currentTime
-        if (currentTime < session.tMin || currentTime > session.tMax) {
+        if (currentTime < session.tMin || (currentTime > session.tMax && !liveMode)) {
           return {
             sessionId,
             name: session.name,
@@ -103,7 +104,7 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
         };
       })
       .filter((b): b is NonNullable<typeof b> => b !== null);
-  }, [selectedSessionIds, hiddenSessionIds, sessions, currentTime, windowStartTime]);
+  }, [selectedSessionIds, hiddenSessionIds, sessions, currentTime, windowStartTime, liveMode]);
 
   // Sort boats
   const sortedBoats = useMemo(() => {

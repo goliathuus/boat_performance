@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { TrackPoint } from '@/domain/types';
 import { generateBoatColor } from '@/lib/color';
+import { dedupeConsecutivePositions, recomputeSOGAndCOG } from '@/domain/tracks';
 
 export interface SessionData {
   id: string;
@@ -22,6 +23,9 @@ interface ReplayState {
   globalTMax: number | null;
   windowStartTime: number | null; // Début de la fenêtre d'affichage
   focusSessionId: string | null;
+  // Suivi en direct : un bateau reste affiche a sa derniere position connue
+  // au-dela de son dernier point (reseau coupe, point pas encore arrive).
+  liveMode: boolean;
 
   setSelectedSessions: (sessionIds: string[]) => void;
   addSession: (sessionId: string, name: string, tMin: number, tMax: number, boatDisplayName?: string) => void;
@@ -29,6 +33,9 @@ interface ReplayState {
   updateSessionPoints: (sessionId: string, points: TrackPoint[]) => void;
   updateMultipleSessionPoints: (updates: Array<{ sessionId: string; points: TrackPoint[] }>) => void;
   updateSessionTimeRange: (sessionId: string) => void;
+  appendSessionPoints: (updates: Array<{ sessionId: string; points: TrackPoint[] }>) => void;
+  recomputeGlobalRange: () => void;
+  setLiveMode: (liveMode: boolean) => void;
   setPlaying: (playing: boolean) => void;
   setSpeed: (speed: number) => void;
   setWindowStartTime: (time: number, currentTime?: number) => void;
@@ -48,6 +55,7 @@ export const useReplayStore = create<ReplayState>((set, get) => ({
   globalTMax: null,
   windowStartTime: null,
   focusSessionId: null,
+  liveMode: false,
 
   setSelectedSessions: (sessionIds) => {
     const nextSelectedSet = new Set(sessionIds);
@@ -213,6 +221,66 @@ export const useReplayStore = create<ReplayState>((set, get) => ({
   },
 
 
+  // Fusionne des points arrives en direct. Ils peuvent etre en retard (file
+  // d'attente du telephone videe au retour du reseau) ou deja connus
+  // (chevauchement du curseur) : on trie et on deduplique par horodatage.
+  appendSessionPoints: (updates) => {
+    const sessions = new Map(get().sessions);
+    let hasChanges = false;
+
+    updates.forEach(({ sessionId, points }) => {
+      const session = sessions.get(sessionId);
+      if (!session || points.length === 0) return;
+
+      const byTime = new Map<number, TrackPoint>();
+      session.points.forEach((p) => byTime.set(p.t, p));
+      const before = byTime.size;
+      points.forEach((p) => {
+        if (!byTime.has(p.t)) byTime.set(p.t, p);
+      });
+      if (byTime.size === before) return;
+
+      const merged = dedupeConsecutivePositions(
+        Array.from(byTime.values()).sort((a, b) => a.t - b.t)
+      );
+      recomputeSOGAndCOG(merged);
+      sessions.set(sessionId, {
+        ...session,
+        points: merged,
+        tMin: merged[0].t,
+        tMax: merged[merged.length - 1].t,
+      });
+      hasChanges = true;
+    });
+
+    if (hasChanges) {
+      set({ sessions });
+      get().recomputeGlobalRange();
+    }
+  },
+
+  // Bornes globales tirees des seules sessions qui ont des points : une
+  // session sans point porte encore des bornes provisoires (fin d'evenement).
+  recomputeGlobalRange: () => {
+    const { selectedSessionIds, sessions } = get();
+    let tMin = Infinity;
+    let tMax = -Infinity;
+    selectedSessionIds.forEach((id) => {
+      const s = sessions.get(id);
+      if (s && s.points.length > 0) {
+        tMin = Math.min(tMin, s.tMin);
+        tMax = Math.max(tMax, s.tMax);
+      }
+    });
+    if (tMin !== Infinity) {
+      set({ globalTMin: tMin, globalTMax: tMax });
+    }
+  },
+
+  setLiveMode: (liveMode) => {
+    set({ liveMode });
+  },
+
   setPlaying: (playing) => {
     set({ playing });
   },
@@ -284,6 +352,7 @@ export const useReplayStore = create<ReplayState>((set, get) => ({
       globalTMax: null,
       windowStartTime: null,
       focusSessionId: null,
+      liveMode: false,
     });
   },
 }));

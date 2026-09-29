@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useReplayStore } from '@/state/useReplayStore';
 import { getPublicTelemetry } from '@/lib/supabase-public';
-import { recomputeSOGAndCOG, dedupeConsecutivePositions } from '@/domain/tracks';
 import type { TrackPoint } from '@/domain/types';
 
 interface UsePublicTelemetryResult {
@@ -12,8 +11,7 @@ interface UsePublicTelemetryResult {
 export function usePublicTelemetry(token: string): UsePublicTelemetryResult {
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
   const sessions = useReplayStore((state) => state.sessions);
-  const updateMultipleSessionPoints = useReplayStore((state) => state.updateMultipleSessionPoints);
-  const updateSessionTimeRange = useReplayStore((state) => state.updateSessionTimeRange);
+  const appendSessionPoints = useReplayStore((state) => state.appendSessionPoints);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -32,7 +30,9 @@ export function usePublicTelemetry(token: string): UsePublicTelemetryResult {
     const toLoad = selectedSessionIds.filter((id) => sessions.has(id) && !loadedRef.current.has(id));
     if (toLoad.length === 0) return;
 
-    setLoading(true);
+    // Seul le premier chargement bloque la page : un bateau qui rejoint un
+    // evenement en direct ne doit pas faire repasser la carte en chargement.
+    if (loadedRef.current.size === 0) setLoading(true);
     setError(null);
 
     const run = async () => {
@@ -51,37 +51,15 @@ export function usePublicTelemetry(token: string): UsePublicTelemetryResult {
             200000
           );
 
-          const sorted = [...points].sort((a, b) => a.t - b.t);
-          const deduped = dedupeConsecutivePositions(sorted);
-          recomputeSOGAndCOG(deduped);
-          updates.push({ sessionId, points: deduped });
+          updates.push({ sessionId, points });
           loadedRef.current.add(sessionId);
         }
 
+        // Fusion plutot que remplacement : en direct, des points ont pu
+        // arriver pendant ce chargement (tri, deduplication et recalcul des
+        // bornes sont faits par le store).
         if (updates.length > 0) {
-          updateMultipleSessionPoints(updates);
-          updates.forEach((u) => updateSessionTimeRange(u.sessionId));
-
-          const store = useReplayStore.getState();
-          const selectedIds = store.selectedSessionIds;
-          const storeSessions = store.sessions;
-          let finalGlobalTMin = Infinity;
-          let finalGlobalTMax = -Infinity;
-
-          selectedIds.forEach((id) => {
-            const s = storeSessions.get(id);
-            if (s && s.points.length > 0) {
-              finalGlobalTMin = Math.min(finalGlobalTMin, s.tMin);
-              finalGlobalTMax = Math.max(finalGlobalTMax, s.tMax);
-            }
-          });
-
-          if (finalGlobalTMin !== Infinity && finalGlobalTMax !== -Infinity) {
-            useReplayStore.setState({
-              globalTMin: finalGlobalTMin,
-              globalTMax: finalGlobalTMax,
-            });
-          }
+          appendSessionPoints(updates);
         }
       } catch (err) {
         setError(err instanceof Error ? err : new Error('Failed to load public telemetry'));
@@ -91,7 +69,7 @@ export function usePublicTelemetry(token: string): UsePublicTelemetryResult {
     };
 
     void run();
-  }, [token, selectedSessionIds, sessions, updateMultipleSessionPoints, updateSessionTimeRange]);
+  }, [token, selectedSessionIds, sessions, appendSessionPoints]);
 
   return { loading, error };
 }

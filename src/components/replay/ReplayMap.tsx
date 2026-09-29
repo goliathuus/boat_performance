@@ -446,6 +446,8 @@ const ReplayMapContent = memo(function ReplayMapContent({
   const setFocusSession = useReplayStore((state) => state.setFocusSession);
   const sessions = useReplayStore((state) => state.sessions);
   const windowStartTime = useReplayStore((state) => state.windowStartTime);
+  // En direct, un bateau reste a sa derniere position au-dela de son dernier point.
+  const liveMode = useReplayStore((state) => state.liveMode);
   
   const [rulerStart, setRulerStart] = useState<[number, number] | null>(null);
   const [rulerEnd, setRulerEnd] = useState<[number, number] | null>(null);
@@ -684,7 +686,11 @@ const ReplayMapContent = memo(function ReplayMapContent({
       let markerPosition: [number, number] | null = null;
       let markerSpeed: number | null = null;
       let markerCog: number | null = null;
-      if (throttledCurrentTime !== null && throttledCurrentTime >= session.tMin && throttledCurrentTime <= session.tMax) {
+      if (
+        throttledCurrentTime !== null &&
+        throttledCurrentTime >= session.tMin &&
+        (throttledCurrentTime <= session.tMax || liveMode)
+      ) {
         const lastPoint = findLastPoint(session.points, throttledCurrentTime);
         if (lastPoint) {
           markerPosition = [lastPoint.lat, lastPoint.lon];
@@ -704,7 +710,7 @@ const ReplayMapContent = memo(function ReplayMapContent({
         isLoading: false,
       };
     });
-  }, [sessionsToDisplay, sessions, throttledCurrentTime, focusSessionId, windowStartTime]);
+  }, [sessionsToDisplay, sessions, throttledCurrentTime, focusSessionId, windowStartTime, liveMode]);
 
   // Calculate distance for ruler tool
   const rulerDistance = useMemo(() => {

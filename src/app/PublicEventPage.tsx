@@ -33,7 +33,6 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
   const globalTMin = useReplayStore((state) => state.globalTMin);
   const globalTMax = useReplayStore((state) => state.globalTMax);
-  const speed = useReplayStore((state) => state.speed);
   const setWindowStartTime = useReplayStore((state) => state.setWindowStartTime);
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [openWidgets, setOpenWidgets] = useState<Set<string>>(() => new Set(['wind']));
@@ -87,8 +86,7 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
   const clock = useReplayClock(
     globalTMin ?? 0,
     globalTMin ?? 0,
-    globalTMax ?? (globalTMin ?? 0),
-    speed
+    globalTMax ?? (globalTMin ?? 0)
   );
 
   const clockInitializedRef = useRef(false);

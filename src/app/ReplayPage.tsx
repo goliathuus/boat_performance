@@ -35,8 +35,6 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
   const sessions = useReplayStore((state) => state.sessions);
   const globalTMin = useReplayStore((state) => state.globalTMin);
   const globalTMax = useReplayStore((state) => state.globalTMax);
-  const playing = useReplayStore((state) => state.playing);
-  const speed = useReplayStore((state) => state.speed);
   const setWindowStartTime = useReplayStore((state) => state.setWindowStartTime);
   const [isExporting, setIsExporting] = useState(false);
   const [activeTool, setActiveTool] = useState<string | null>(null);
@@ -81,8 +79,7 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
   const clock = useReplayClock(
     globalTMin ?? 0,
     globalTMin ?? 0,
-    globalTMax ?? (globalTMin ?? 0),
-    speed
+    globalTMax ?? (globalTMin ?? 0)
   );
 
   // Initialize clock time and windowStartTime only once when data is first loaded
@@ -99,23 +96,6 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
     }
   }, [globalTMin, globalTMax, clock, loading, setWindowStartTime]);
 
-  // Sync store playing/speed to clock (one-way: store -> clock)
-  const playingRef = useRef(playing);
-  const speedRef = useRef(speed);
-  playingRef.current = playing;
-  speedRef.current = speed;
-
-  useEffect(() => {
-    if (playingRef.current !== clock.playing) {
-      clock.setPlaying(playingRef.current);
-    }
-  }, [playing, clock]);
-
-  useEffect(() => {
-    if (speedRef.current !== clock.speed) {
-      clock.setSpeed(speedRef.current);
-    }
-  }, [speed, clock]);
 
 
   const handleExportCSV = async () => {

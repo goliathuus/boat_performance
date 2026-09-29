@@ -394,7 +394,16 @@ export function dedupeConsecutivePositions(points: TrackPoint[]): TrackPoint[] {
     }
     // Otherwise, skip this point (it's too close to the previous one)
   }
-  
+
+  // Le dernier point recu est garde meme immobile : il date la derniere
+  // emission. Sans lui, un bateau a l'arret (au mouillage, ou en direct
+  // pendant une pause) semblait ne plus rien envoyer depuis son dernier
+  // deplacement, et la fin du replay restait figee.
+  const last = points[points.length - 1];
+  if (last !== deduped[deduped.length - 1] && last.t > deduped[deduped.length - 1].t) {
+    deduped.push(last);
+  }
+
   return deduped;
 }
 

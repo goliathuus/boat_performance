@@ -2,6 +2,7 @@ import { EventWithStats } from '@/domain/types';
 import { Button } from '@/components/ui/button';
 import { StatusPill } from '@/components/ui/brand';
 import { PublicShareLink } from './PublicShareLink';
+import { TrackingLink } from './TrackingLink';
 
 function formatDateTime(dateString: string): string {
   const date = new Date(dateString);
@@ -74,6 +75,8 @@ export function EventList({ events, onView, onStop, onDelete, onShareUpdated, lo
                   </div>
                 )}
               </div>
+              {/* Inscription refusee apres la fin : lien seulement en cours ou a venir. */}
+              {event.status !== 'expired' && <TrackingLink code={event.code} />}
               <PublicShareLink
                 eventId={event.id}
                 shareToken={event.share_token}

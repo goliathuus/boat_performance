@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useReplayStore } from '@/state/useReplayStore';
 import { getTelemetryAll } from '@/lib/supabase-rpc';
@@ -9,6 +9,51 @@ import type { TrackPoint } from '@/domain/types';
 interface UseTelemetryResult {
   loading: boolean;
   error: Error | null;
+  /**
+   * Recharge les points des sessions affichees, jusqu'a maintenant, sans
+   * repasser par l'ecran de chargement : la carte, la vue et la tete de
+   * lecture restent en place.
+   */
+  refresh: () => Promise<void>;
+  refreshing: boolean;
+  lastRefresh: number | null;
+}
+
+/**
+ * Trie, deduplique, recalcule vitesse et cap, puis ecrit les points dans le
+ * store et recale les bornes de temps globales. Partage par le chargement
+ * initial et par le rafraichissement.
+ */
+function storeLoadedPoints(loaded: Array<{ sessionId: string; points: TrackPoint[] }>): void {
+  const store = useReplayStore.getState();
+  const prepared = loaded.map(({ sessionId, points }) => {
+    const sortedPoints = [...points].sort((a, b) => a.t - b.t);
+    // Remove consecutive points with identical GPS positions
+    const dedupedPoints = dedupeConsecutivePositions(sortedPoints);
+    // Recompute SOG and COG for all points based on GPS trajectory
+    // This overwrites any existing SOG/COG values from the database
+    recomputeSOGAndCOG(dedupedPoints);
+    return { sessionId, points: dedupedPoints };
+  });
+
+  store.updateMultipleSessionPoints(prepared);
+  // Recalculate tMin/tMax for each session based on actual points
+  prepared.forEach(({ sessionId }) => store.updateSessionTimeRange(sessionId));
+
+  // Recalculate globalTMin/globalTMax from all selected sessions
+  const { selectedSessionIds, sessions } = useReplayStore.getState();
+  let finalGlobalTMin = Infinity;
+  let finalGlobalTMax = -Infinity;
+  selectedSessionIds.forEach((id) => {
+    const s = sessions.get(id);
+    if (s && s.points.length > 0) {
+      finalGlobalTMin = Math.min(finalGlobalTMin, s.tMin);
+      finalGlobalTMax = Math.max(finalGlobalTMax, s.tMax);
+    }
+  });
+  if (finalGlobalTMin !== Infinity && finalGlobalTMax !== -Infinity) {
+    useReplayStore.setState({ globalTMin: finalGlobalTMin, globalTMax: finalGlobalTMax });
+  }
 }
 
 /**
@@ -210,53 +255,7 @@ export function useTelemetry(): UseTelemetryResult {
 
         // Update store with successful loads
         if (successful.length > 0) {
-          
-          // Sort points by time and recompute SOG/COG before updating
-          const sortedSuccessful = successful.map(({ sessionId, points }) => {
-            const sortedPoints = [...points].sort((a, b) => a.t - b.t);
-            
-            // Remove consecutive points with identical GPS positions
-            const dedupedPoints = dedupeConsecutivePositions(sortedPoints);
-            
-            // Recompute SOG and COG for all points based on GPS trajectory
-            // This overwrites any existing SOG/COG values from the database
-            recomputeSOGAndCOG(dedupedPoints);
-            
-            return {
-              sessionId,
-              points: dedupedPoints,
-            };
-          });
-
-          updateMultipleSessionPoints(sortedSuccessful);
-
-          // Recalculate tMin/tMax for each session based on actual points
-          sortedSuccessful.forEach(({ sessionId }) => {
-            updateSessionTimeRange(sessionId);
-          });
-
-          // Recalculate globalTMin/globalTMax from all selected sessions
-          const store = useReplayStore.getState();
-          const selectedIds = store.selectedSessionIds;
-          const storeSessions = store.sessions;
-
-          let finalGlobalTMin = Infinity;
-          let finalGlobalTMax = -Infinity;
-          selectedIds.forEach((id) => {
-            const s = storeSessions.get(id);
-            if (s && s.points.length > 0) {
-              finalGlobalTMin = Math.min(finalGlobalTMin, s.tMin);
-              finalGlobalTMax = Math.max(finalGlobalTMax, s.tMax);
-            }
-          });
-
-
-          if (finalGlobalTMin !== Infinity && finalGlobalTMax !== -Infinity) {
-            useReplayStore.setState({
-              globalTMin: finalGlobalTMin,
-              globalTMax: finalGlobalTMax,
-            });
-          }
+          storeLoadedPoints(successful);
         } else if (failed.length > 0) {
           console.warn('[useTelemetry] All telemetry loads failed', {
             failed: failed.length,
@@ -283,9 +282,46 @@ export function useTelemetry(): UseTelemetryResult {
     };
   }, [selectedSessionIds, sessionsSize, sessionsKeys, addSessions, updateMultipleSessionPoints, updateSessionTimeRange]);
 
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<number | null>(null);
+
+  const refresh = useCallback(async () => {
+    const { selectedSessionIds: ids, sessions: current } = useReplayStore.getState();
+    const targets = ids.filter((id) => current.has(id));
+    if (targets.length === 0) return;
+    setRefreshing(true);
+    try {
+      // Fin de fenetre = maintenant : apres le premier chargement, tMax est
+      // recale sur le dernier point recu, il ne ramenerait rien de nouveau.
+      const now = new Date();
+      const results = await Promise.allSettled(
+        targets.map(async (sessionId) => {
+          const session = current.get(sessionId)!;
+          const points = await getTelemetryAll(sessionId, new Date(session.tMin), now);
+          return { sessionId, points };
+        })
+      );
+      const loaded = results
+        .filter((r): r is PromiseFulfilledResult<{ sessionId: string; points: TrackPoint[] }> => r.status === 'fulfilled')
+        .map((r) => r.value)
+        .filter((r) => r.points.length > 0);
+      if (loaded.length > 0) storeLoadedPoints(loaded);
+      const failures = results.filter((r) => r.status === 'rejected').length;
+      if (failures > 0) console.warn(`[useTelemetry] Rafraichissement : ${failures} session(s) en echec`);
+      setLastRefresh(Date.now());
+    } catch (err) {
+      console.error('[useTelemetry] Echec du rafraichissement :', err);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
   return {
     loading,
     error,
+    refresh,
+    refreshing,
+    lastRefresh,
   };
 }
 

@@ -15,6 +15,7 @@ import { useTelemetry } from '@/hooks/useTelemetry';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { FullscreenButton } from '@/components/replay/FullscreenButton';
+import { RefreshButton } from '@/components/replay/RefreshButton';
 import { exportSessionsToCSV } from '@/lib/csv-export';
 import { downloadCSV, generateCSVFilename } from '@/lib/csv-download';
 
@@ -71,7 +72,7 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
   }, []);
 
   // Load telemetry using unified hook
-  const { loading } = useTelemetry();
+  const { loading, refresh, refreshing, lastRefresh } = useTelemetry();
 
   // Initialize replay clock (only when times are available)
   // Note: globalTMax should never be null here due to spinner check above
@@ -81,6 +82,21 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
     globalTMin ?? 0,
     globalTMax ?? (globalTMin ?? 0)
   );
+
+  const followEndRef = useRef(false);
+  const handleRefresh = useCallback(() => {
+    const before = useReplayStore.getState().globalTMax;
+    followEndRef.current = before !== null && clock.currentTime >= before - 1000;
+    void refresh();
+  }, [refresh, clock.currentTime]);
+  useEffect(() => {
+    if (followEndRef.current && globalTMax !== null) {
+      followEndRef.current = false;
+      clock.setCurrentTime(globalTMax);
+    }
+    // clock.setCurrentTime est stable ; seule la nouvelle fin compte.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [globalTMax]);
 
   // Initialize clock time and windowStartTime only once when data is first loaded
   useEffect(() => {
@@ -286,6 +302,7 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
             ))}
           </div>
           <FullscreenButton className="glass h-10 w-10 flex-none rounded-full" />
+          <RefreshButton onRefresh={handleRefresh} refreshing={refreshing} lastRefresh={lastRefresh} />
           <OverflowMenu
             items={[
               {

@@ -160,10 +160,9 @@ export function WindLegend({
           </div>
 
           <div className="mt-1 border-t border-foreground/10 pt-1">
-            <div className="flex items-start justify-between gap-2">
-              <span className="text-foreground/85">
-                {m.label} · {m.provider} · {m.resolution} · pas {m.stepMinutes} min
-              </span>
+            {/* Sur telephone, la ligne du modele rejoint le detail replie : la carte d'abord. */}
+            <div className={cn('text-foreground/85', !expanded && 'hidden sm:block')}>
+              {m.label} · {m.provider} · {m.resolution} · pas {m.stepMinutes} min
             </div>
             {message && <div className="text-amber-300/90">{message}</div>}
             <button

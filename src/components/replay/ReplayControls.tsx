@@ -104,72 +104,106 @@ export function ReplayControls({ currentTime, setCurrentTime }: ReplayControlsPr
     </Select>
   );
 
+  const togglePlay = () => setPlaying(!playing);
+
+  const playButton = (className: string, iconClass: string) => (
+    <button
+      type="button"
+      onClick={togglePlay}
+      aria-label={playing ? 'Pause' : 'Lecture'}
+      title={playing ? 'Pause' : 'Lecture'}
+      className={cn(
+        'grid flex-none place-items-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-black/30 transition-transform hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        className
+      )}
+    >
+      <span className={iconClass}>{playing ? <PauseIcon /> : <PlayIcon />}</span>
+    </button>
+  );
+
+  const timeline = (size: 'md' | 'lg') => (
+    <>
+      <RangeSlider
+        min={0}
+        max={100}
+        step={0.1}
+        size={size}
+        value={[startProgress, currentProgress]}
+        onValueChange={([newStartProgress, newCurrentProgress]) => {
+          const newWindowTime = globalTMin + (newStartProgress / 100) * span;
+          const newCurrentTime = globalTMin + (newCurrentProgress / 100) * span;
+          setWindowStartTime(newWindowTime, newCurrentTime);
+          setCurrentTime(newCurrentTime);
+        }}
+        className="w-full"
+        startLabel="Début de la fenêtre de replay"
+        endLabel="Tête de lecture"
+        formatValue={(pct) => formatTime(globalTMin + (pct / 100) * span)}
+      />
+      {/* Graduations horaires, facon bandeau de previsions */}
+      <div
+        className={cn('relative overflow-hidden text-[10px] tabular-nums text-muted-foreground', size === 'lg' ? 'mt-2 h-4' : 'h-4')}
+        aria-hidden="true"
+      >
+        {ticks.map(({ t, label }, i) => (
+          <span
+            key={t}
+            className={cn(
+              'absolute top-0 border-l border-foreground/20 pl-1 pt-0.5 leading-none',
+              // Sur mobile, un repere sur deux suffit.
+              i % 2 === 1 && 'hidden sm:block'
+            )}
+            style={{ left: `${((t - globalTMin) / span) * 100}%` }}
+          >
+            {label}
+          </span>
+        ))}
+      </div>
+    </>
+  );
+
   return (
-    <div className="glass border-t px-3 pb-2 pt-2 sm:px-4 sm:pb-2.5">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 sm:flex-nowrap sm:gap-4">
-        <img
-          src="/sh.png"
-          alt="SH Course au large"
-          className="hidden md:block h-12 lg:h-14 w-auto opacity-80 flex-none"
-        />
+    <div className="glass border-t">
+      {/*
+        Telephone : tout est a portee de pouce et au-dessus de la zone
+        gestuelle (barre d'accueil iPhone, navigation Android). Gros bouton
+        lecture a cote du curseur, curseur agrandi, tap sur la piste pour sauter.
+      */}
+      <div className="safe-bottom-controls px-4 pt-3 sm:hidden">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 leading-tight tabular-nums">
+            <div className="text-xl font-semibold">{formatTime(currentTime)}</div>
+            <div className="truncate text-[11px] text-muted-foreground">
+              {currentDate} · UTC · fenêtre dès{' '}
+              <span className="font-semibold text-primary">{formatTime(windowStartTime).slice(0, 5)}</span>
+            </div>
+          </div>
+          {speedSelect('h-10 w-[5.25rem] flex-none text-sm')}
+        </div>
+        <div className="mt-3 flex items-center gap-4">
+          {playButton('h-14 w-14', '[&_svg]:h-6 [&_svg]:w-6')}
+          <div className="min-w-0 flex-1 pt-1">{timeline('lg')}</div>
+        </div>
+      </div>
 
-        <button
-          type="button"
-          onClick={() => setPlaying(!playing)}
-          aria-label={playing ? 'Pause' : 'Lecture'}
-          title={playing ? 'Pause' : 'Lecture'}
-          className="grid h-11 w-11 flex-none place-items-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-black/30 transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        >
-          {playing ? <PauseIcon /> : <PlayIcon />}
-        </button>
-
+      {/* Ordinateur et tablette */}
+      <div className="hidden items-center gap-4 px-4 pb-2.5 pt-2 sm:flex">
+        <img src="/sh.png" alt="SH Course au large" className="hidden h-12 w-auto flex-none opacity-80 md:block lg:h-14" />
+        {playButton('h-11 w-11', '')}
         <div className="flex-none leading-tight tabular-nums">
-          <div className="text-base font-semibold sm:text-lg">{formatTime(currentTime)}</div>
+          <div className="text-lg font-semibold">{formatTime(currentTime)}</div>
           <div className="text-[11px] text-muted-foreground">{currentDate} · UTC</div>
         </div>
-
-        <div className="order-last min-w-0 basis-full sm:order-none sm:basis-auto sm:flex-1">
+        <div className="min-w-0 flex-1">
           <div className="mb-0.5 flex items-baseline justify-between gap-2 text-[11px] tabular-nums text-muted-foreground">
             <span>
               Fenêtre dès <span className="font-semibold text-primary">{formatTime(windowStartTime)}</span>
             </span>
-            <span className="hidden sm:inline">Fin {formatTime(globalTMax)}</span>
+            <span>Fin {formatTime(globalTMax)}</span>
           </div>
-          <RangeSlider
-            min={0}
-            max={100}
-            step={0.1}
-            value={[startProgress, currentProgress]}
-            onValueChange={([newStartProgress, newCurrentProgress]) => {
-              const newWindowTime = globalTMin + (newStartProgress / 100) * span;
-              const newCurrentTime = globalTMin + (newCurrentProgress / 100) * span;
-              setWindowStartTime(newWindowTime, newCurrentTime);
-              setCurrentTime(newCurrentTime);
-            }}
-            className="w-full"
-            startLabel="Début de la fenêtre de replay"
-            endLabel="Tête de lecture"
-            formatValue={(pct) => formatTime(globalTMin + (pct / 100) * span)}
-          />
-          {/* Graduations horaires, facon bandeau de previsions */}
-          <div className="relative h-4 overflow-hidden text-[10px] tabular-nums text-muted-foreground" aria-hidden="true">
-            {ticks.map(({ t, label }, i) => (
-              <span
-                key={t}
-                className={cn(
-                  'absolute top-0 border-l border-foreground/20 pl-1 pt-0.5 leading-none',
-                  // Sur mobile, un repere sur deux suffit.
-                  i % 2 === 1 && 'hidden sm:block'
-                )}
-                style={{ left: `${((t - globalTMin) / span) * 100}%` }}
-              >
-                {label}
-              </span>
-            ))}
-          </div>
+          {timeline('md')}
         </div>
-
-        {speedSelect('ml-auto w-[4.5rem] flex-none sm:ml-0')}
+        {speedSelect('w-[4.5rem] flex-none')}
       </div>
     </div>
   );

@@ -13,6 +13,8 @@ export interface RangeSliderProps
   endLabel?: string;
   /** Formate la valeur annoncee (aria-valuetext). */
   formatValue?: (value: number) => string;
+  /** 'lg' : piste et pastilles agrandies pour le doigt (replay sur telephone). */
+  size?: 'md' | 'lg';
 }
 
 type Thumb = 'start' | 'end';
@@ -37,6 +39,7 @@ const RangeSlider = React.forwardRef<HTMLDivElement, RangeSliderProps>(
       startLabel = 'Début de la fenêtre',
       endLabel = 'Tête de lecture',
       formatValue,
+      size = 'md',
       ...props
     },
     ref
@@ -90,6 +93,12 @@ const RangeSlider = React.forwardRef<HTMLDivElement, RangeSliderProps>(
         /* capture indisponible : les ecouteurs window prennent le relais */
       }
       setDragging(thumb);
+    };
+
+    const onTrackPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      commit('end', valueFromClientX(e.clientX));
+      setDragging('end');
     };
 
     const draggingRef = React.useRef<Thumb | null>(null);
@@ -170,6 +179,11 @@ const RangeSlider = React.forwardRef<HTMLDivElement, RangeSliderProps>(
 
     const describe = (v: number) => (formatValue ? formatValue(v) : String(v));
 
+    // Cible tactile (hit) et piste (track), en px ; la cible est centree sur la piste.
+    const large = size === 'lg';
+    const hit = large ? 48 : 44;
+    const track = large ? 10 : 8;
+
     const thumb = (kind: Thumb) => {
       const isStart = kind === 'start';
       const percent = isStart ? startPercent : endPercent;
@@ -190,21 +204,23 @@ const RangeSlider = React.forwardRef<HTMLDivElement, RangeSliderProps>(
           onKeyDown={onThumbKeyDown(kind)}
           /* La cible fait 44 px pour le doigt ; seule la pastille interne se voit. */
           className={cn(
-            'absolute grid h-11 w-11 place-items-center bg-transparent p-0 touch-none',
+            'absolute grid place-items-center bg-transparent p-0 touch-none',
             'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
             'focus-visible:ring-offset-background rounded-full',
             active ? 'cursor-grabbing' : 'cursor-grab'
           )}
           style={{
-            left: `calc(${percent}% - 22px)`,
-            top: '-18px',
+            left: `calc(${percent}% - ${hit / 2}px)`,
+            top: `${-(hit - track) / 2}px`,
+            width: hit,
+            height: hit,
             zIndex: active ? 10 : isStart ? 3 : 4,
           }}
         >
           <span
             className={cn(
               'block rounded-full border-2 border-white shadow-md transition-transform',
-              'h-5 w-5 sm:h-4 sm:w-4',
+              large ? 'h-6 w-6' : 'h-5 w-5 sm:h-4 sm:w-4',
               isStart ? 'bg-primary' : 'bg-foreground',
               active && 'scale-125'
             )}
@@ -216,12 +232,21 @@ const RangeSlider = React.forwardRef<HTMLDivElement, RangeSliderProps>(
     return (
       <div
         ref={setRefs}
-        className={cn('relative h-2 w-full touch-none', className)}
+        className={cn('relative w-full touch-none', className)}
+        style={{ height: track }}
         {...props}
       >
-        <div className="absolute h-2 w-full rounded-lg bg-secondary" />
+        {/* Zone de tap invisible, plus haute que la piste. */}
         <div
-          className="pointer-events-none absolute h-2 rounded-lg bg-primary/30"
+          aria-hidden="true"
+          className="absolute inset-x-0 cursor-pointer"
+          style={{ top: -(hit - track) / 2, height: hit }}
+          onPointerDown={onTrackPointerDown}
+        />
+        <div className="pointer-events-none absolute h-full w-full rounded-full bg-secondary" />
+        {/* Fenetre deja jouee, entre les deux pastilles. */}
+        <div
+          className="pointer-events-none absolute h-full rounded-full bg-primary/55"
           style={{
             left: `${startPercent}%`,
             width: `${Math.max(0, endPercent - startPercent)}%`,

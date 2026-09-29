@@ -118,7 +118,7 @@ interface ToolsPanelProps {
 
 export function ToolsPanel({ activeTool, onToolChange, openWidgets, onToggleWidget }: ToolsPanelProps) {
   return (
-    <div className="absolute left-0 top-0 bottom-0 w-12 glass border-r flex flex-col items-center py-2 gap-2 z-[1000]">
+    <div className="glass absolute left-2 top-[3.75rem] z-[1000] flex flex-col items-center gap-1 rounded-2xl border p-1 sm:bottom-0 sm:left-0 sm:top-0 sm:w-12 sm:gap-2 sm:rounded-none sm:border-y-0 sm:border-l-0 sm:border-r sm:px-0 sm:py-2">
       {tools.map((tool) => {
         if (tool.isWidget) {
           // Widget: toggle open/close
@@ -128,7 +128,7 @@ export function ToolsPanel({ activeTool, onToolChange, openWidgets, onToggleWidg
               key={tool.id}
               onClick={() => onToggleWidget(tool.id)}
               aria-pressed={isOpen}
-              className={`p-2 rounded-lg hover:bg-accent transition-colors ${
+              className={`grid h-10 w-10 place-items-center rounded-xl transition-colors hover:bg-accent sm:h-9 sm:w-9 sm:rounded-lg ${
                 isOpen
                   ? 'bg-primary text-primary-foreground'
                   : 'text-foreground'
@@ -146,7 +146,7 @@ export function ToolsPanel({ activeTool, onToolChange, openWidgets, onToggleWidg
               key={tool.id}
               onClick={() => onToolChange(activeTool === tool.id ? null : tool.id)}
               aria-pressed={activeTool === tool.id}
-              className={`p-2 rounded-lg hover:bg-accent transition-colors ${
+              className={`grid h-10 w-10 place-items-center rounded-xl transition-colors hover:bg-accent sm:h-9 sm:w-9 sm:rounded-lg ${
                 activeTool === tool.id
                   ? 'bg-primary text-primary-foreground'
                   : 'text-foreground'

@@ -1,4 +1,4 @@
-import { useCallback, useState, useRef } from 'react';
+import { forwardRef, useCallback, useImperativeHandle, useState, useRef } from 'react';
 import { parseCSV } from '@/domain/parsing/csv';
 import { useReplayStore } from '@/state/useReplayStore';
 import type { TrackPoint } from '@/domain/types';
@@ -6,9 +6,16 @@ import { Button } from '@/components/ui/button';
 
 interface CsvImportButtonProps {
   className?: string;
+  /** Sans bouton visible : l'import est declenche par ref (menu « ⋯ »). */
+  hideTrigger?: boolean;
 }
 
-export function CsvImportButton({ className }: CsvImportButtonProps) {
+export type CsvImportHandle = { open: () => void };
+
+export const CsvImportButton = forwardRef<CsvImportHandle, CsvImportButtonProps>(function CsvImportButton(
+  { className, hideTrigger = false },
+  ref
+) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -79,7 +86,7 @@ export function CsvImportButton({ className }: CsvImportButtonProps) {
           fileInputRef.current.value = '';
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to parse CSV');
+        setError(err instanceof Error ? err.message : 'Lecture du CSV impossible');
         console.error('CSV import error:', err);
       } finally {
         setLoading(false);
@@ -92,18 +99,22 @@ export function CsvImportButton({ className }: CsvImportButtonProps) {
     fileInputRef.current?.click();
   }, []);
 
+  useImperativeHandle(ref, () => ({ open: openFileDialog }), [openFileDialog]);
+
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={openFileDialog}
-        disabled={loading}
-        className={className}
-        title="Import CSV file to replay"
-      >
-        {loading ? 'Loading...' : '📁 Import CSV'}
-      </Button>
+      {!hideTrigger && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={openFileDialog}
+          disabled={loading}
+          className={className}
+          title="Importer un CSV à rejouer"
+        >
+          {loading ? 'Chargement…' : 'Importer un CSV'}
+        </Button>
+      )}
       <input
         ref={fileInputRef}
         type="file"
@@ -112,17 +123,16 @@ export function CsvImportButton({ className }: CsvImportButtonProps) {
         className="hidden"
       />
       {error && (
-        <div className="absolute top-12 left-4 z-[1001] p-3 bg-destructive/90 text-destructive-foreground rounded-md text-sm max-w-md">
+        <div role="alert" className="absolute top-16 left-2 right-2 z-[1001] max-w-md rounded-lg bg-destructive/90 p-3 text-sm text-destructive-foreground sm:left-16 sm:right-auto">
           {error}
           <button
             onClick={() => setError(null)}
             className="ml-2 underline"
           >
-            Dismiss
+            Fermer
           </button>
         </div>
       )}
     </>
   );
-}
-
+});

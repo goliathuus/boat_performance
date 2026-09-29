@@ -978,6 +978,9 @@ export function ReplayMap({
       center={[46.0, -1.0]}
       zoom={10}
       maxZoom={19}
+      // Zoom au pincement ou a la molette : les boutons +/- etaient de toute
+      // facon masques par la barre d'outils de gauche.
+      zoomControl={false}
       style={{ height: '100%', width: '100%' }}
       className="z-0"
     >
@@ -1023,7 +1026,7 @@ export function ReplayMap({
       />
     </MapContainer>
     {(showWind || onToggleWind) && (
-      <div className="absolute bottom-6 left-14 z-[900] sm:left-16">
+      <div className="absolute bottom-6 left-2 z-[900] sm:left-16">
         <WindLegend
           enabled={showWind}
           onToggleEnabled={onToggleWind}

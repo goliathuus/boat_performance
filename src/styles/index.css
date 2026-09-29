@@ -170,6 +170,15 @@
 .safe-bottom {
   padding-bottom: max(0px, env(safe-area-inset-bottom));
 }
+/*
+ * Barre de lecture sur telephone : au moins 14 px de marge basse, plus la
+ * zone de la barre d'accueil (iPhone) ou de la navigation gestuelle (Android
+ * en bord a bord). Chrome Android ne fournit pas toujours l'inset : le
+ * plancher de 14 px garde le curseur hors de la zone de geste dans tous les cas.
+ */
+.safe-bottom-controls {
+  padding-bottom: max(14px, calc(env(safe-area-inset-bottom) + 8px));
+}
 .safe-top {
   padding-top: max(0px, env(safe-area-inset-top));
 }

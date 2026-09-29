@@ -7,7 +7,9 @@ import { BoatListWidget } from '@/components/replay/BoatListWidget';
 import { GateRankingWidget } from '@/components/replay/GateRankingWidget';
 import { ReplayControls } from '@/components/replay/ReplayControls';
 import type { Gate, Result, Crossing } from '@/types';
-import { CsvImportButton } from '@/components/replay/CsvImportButton';
+import { CsvImportButton, type CsvImportHandle } from '@/components/replay/CsvImportButton';
+import { OverflowMenu } from '@/components/ui/overflow-menu';
+import { cn } from '@/lib/utils';
 import { ToolsPanel } from '@/components/replay/ToolsPanel';
 import { useTelemetry } from '@/hooks/useTelemetry';
 import { Button } from '@/components/ui/button';
@@ -61,6 +63,7 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
   
   // Track if clock has been initialized to avoid resetting user's cursor position
   const clockInitializedRef = useRef(false);
+  const csvImportRef = useRef<CsvImportHandle>(null);
   
   // Store the centerOnBoat function from the map
   const centerOnBoatRef = useRef<((sessionId: string, currentTime: number) => void) | null>(null);
@@ -269,50 +272,53 @@ export function ReplayPage({ onBack, onLogout, onOpenCsvAgg }: ReplayPageProps) 
           </div>
         )}
 
-        {/* Top toolbar */}
-        <div className="absolute top-2 left-12 right-[4.75rem] sm:top-4 sm:left-16 sm:right-auto sm:max-w-[calc(100%-4rem-14rem)] z-[1000] flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={onBack}>
-            ← Retour
-          </Button>
-          <div className="flex gap-1 rounded-md border bg-background/90 p-0.5">
-            <Button
-              variant={replayViewMode === '2d' ? 'default' : 'ghost'}
-              size="sm"
-              className="h-8 px-3"
-              onClick={() => setReplayViewMode('2d')}
-            >
-              <span className="sm:hidden">2D</span><span className="hidden sm:inline">Vue 2D</span>
-            </Button>
-            <Button
-              variant={replayViewMode === '3d' ? 'default' : 'ghost'}
-              size="sm"
-              className="h-8 px-3"
-              onClick={() => setReplayViewMode('3d')}
-            >
-              <span className="sm:hidden">3D</span><span className="hidden sm:inline">Vue 3D</span>
-            </Button>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportCSV}
-            disabled={isExporting || selectedSessionIds.length === 0}
-            title="Exporter toutes les sessions en CSV"
+        {/*
+          Barre du haut reduite a l'essentiel : retour, 2D/3D, plein ecran.
+          Les actions ponctuelles (export, import, agregation, deconnexion)
+          passent dans le menu « ⋯ » : sur telephone, elles occupaient
+          quatre lignes au-dessus de la carte.
+        */}
+        <div className="absolute left-2 right-14 top-2 z-[1000] flex items-center gap-2 safe-top sm:left-16 sm:right-auto sm:top-3">
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Retour aux sessions"
+            title="Retour aux sessions"
+            className="glass flex h-10 flex-none items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors hover:bg-accent/60"
           >
-            {isExporting ? 'Export…' : 'Exporter en CSV'}
-          </Button>
-          <FullscreenButton />
-          <CsvImportButton />
-          {onOpenCsvAgg && (
-            <Button variant="outline" size="sm" onClick={onOpenCsvAgg}>
-              Agréger des CSV
-            </Button>
-          )}
-          {onLogout && (
-            <Button variant="outline" size="sm" onClick={onLogout}>
-              Déconnexion
-            </Button>
-          )}
+            <span aria-hidden="true">←</span>
+            <span className="hidden sm:inline">Sessions</span>
+          </button>
+          <div className="glass flex h-10 flex-none items-center rounded-full border p-1" role="group" aria-label="Vue">
+            {(['2d', '3d'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={replayViewMode === mode}
+                onClick={() => setReplayViewMode(mode)}
+                className={cn(
+                  'h-8 rounded-full px-3.5 text-sm font-semibold transition-colors',
+                  replayViewMode === mode ? 'bg-primary text-primary-foreground' : 'text-foreground/80 hover:text-foreground'
+                )}
+              >
+                {mode.toUpperCase()}
+              </button>
+            ))}
+          </div>
+          <FullscreenButton className="glass h-10 w-10 flex-none rounded-full" />
+          <OverflowMenu
+            items={[
+              {
+                label: isExporting ? 'Export en cours…' : 'Exporter en CSV',
+                onSelect: handleExportCSV,
+                disabled: isExporting || selectedSessionIds.length === 0,
+              },
+              { label: 'Importer un CSV', onSelect: () => csvImportRef.current?.open() },
+              ...(onOpenCsvAgg ? [{ label: 'Agréger des CSV', onSelect: onOpenCsvAgg }] : []),
+              ...(onLogout ? [{ label: 'Déconnexion', onSelect: onLogout, destructive: true }] : []),
+            ]}
+          />
+          <CsvImportButton ref={csvImportRef} hideTrigger />
         </div>
 
       </div>

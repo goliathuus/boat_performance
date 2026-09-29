@@ -14,6 +14,7 @@ import { StravaSubmitCallout } from '@/components/StravaSubmitCallout';
 import { WindBackdrop } from '@/components/ui/WindBackdrop';
 import { Credits, GlassCard, PageHeader, StatusPill } from '@/components/ui/brand';
 import { cn } from '@/lib/utils';
+import { formatDateRange } from '@/lib/time';
 
 type TabType = 'events' | 'sessions';
 
@@ -241,7 +242,7 @@ export function UnifiedSessionPicker({
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium">{session.name}</div>
           <div className="text-xs text-muted-foreground tabular-nums">
-            {formatRange(session.started_at, session.ended_at ?? null)}
+            {formatDateRange(session.started_at, session.ended_at ?? null)}
           </div>
         </div>
         <Button
@@ -337,7 +338,7 @@ export function UnifiedSessionPicker({
                             <StatusPill status={event.status} />
                           </div>
                           <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground tabular-nums">
-                            <span>{formatRange(event.starts_at, event.ends_at)}</span>
+                            <span>{formatDateRange(event.starts_at, event.ends_at)}</span>
                             <span>
                               {event.session_count} session{event.session_count > 1 ? 's' : ''}
                             </span>
@@ -489,14 +490,4 @@ function PlayIcon() {
       <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" />
     </svg>
   );
-}
-
-/** « 9 mai 2026 · 12:45 → 19:30 », ou deux dates completes si la plage change de jour. */
-function formatRange(start: string, end: string | null): string {
-  const s = new Date(start);
-  const day = (d: Date) => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
-  const time = (d: Date) => d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  if (!end) return `${day(s)} · ${time(s)}`;
-  const e = new Date(end);
-  return day(s) === day(e) ? `${day(s)} · ${time(s)} → ${time(e)}` : `${day(s)} ${time(s)} → ${day(e)} ${time(e)}`;
 }

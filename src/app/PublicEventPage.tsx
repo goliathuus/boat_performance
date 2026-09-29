@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
+import { useCallback, useEffect, useRef, useState, lazy, Suspense, type ReactNode } from 'react';
 import { useReplayStore } from '@/state/useReplayStore';
 import { useReplayClock } from '@/hooks/useReplayClock';
 import { ReplayMapWithData } from '@/components/replay/ReplayMap';
@@ -9,7 +9,10 @@ import { ReplayControls } from '@/components/replay/ReplayControls';
 import { ToolsPanel } from '@/components/replay/ToolsPanel';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { FullscreenButton } from '@/components/replay/FullscreenButton';
-import { Button } from '@/components/ui/button';
+import { WindBackdrop } from '@/components/ui/WindBackdrop';
+import { BrandMark, BrandWordmark } from '@/components/ui/brand';
+import { formatDateRange } from '@/lib/time';
+import { cn } from '@/lib/utils';
 import { usePublicEvent } from '@/hooks/usePublicEvent';
 import { usePublicTelemetry } from '@/hooks/usePublicTelemetry';
 import { usePublicLiveTelemetry } from '@/hooks/usePublicLiveTelemetry';
@@ -153,30 +156,24 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
 
   if (loadingEvent) {
     return (
-      <div className="dark bg-background text-foreground w-screen app-shell flex items-center justify-center">
-        <LoadingSpinner size="lg" text="Loading public event..." />
-      </div>
+      <PublicStatus>
+        <LoadingSpinner size="lg" text="Chargement de l’événement…" />
+      </PublicStatus>
     );
   }
 
   if (eventError || !event) {
     return (
-      <div className="dark bg-background text-foreground w-screen app-shell flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-xl font-semibold mb-2">Public link unavailable</div>
-          <div className="text-sm text-muted-foreground">
-            {eventError?.message || 'This link is invalid or disabled.'}
-          </div>
-        </div>
-      </div>
+      <PublicStatus
+        title="Lien public indisponible"
+        text={eventError?.message || 'Ce lien est invalide ou a été désactivé par l’organisateur.'}
+      />
     );
   }
 
   if (telemetryError) {
     return (
-      <div className="dark bg-background text-foreground w-screen app-shell flex items-center justify-center">
-        <div className="text-sm text-destructive">{telemetryError.message}</div>
-      </div>
+      <PublicStatus title="Impossible de charger les traces" text={telemetryError.message} />
     );
   }
 
@@ -187,98 +184,94 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
 
   if (!loadingTelemetry && selectedCount === 0) {
     return (
-      <div className="dark bg-background text-foreground w-screen app-shell flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-xl font-semibold mb-2">No public sessions yet</div>
-          <div className="text-sm text-muted-foreground">
-            This event has no published sessions at the moment.
-          </div>
-        </div>
-      </div>
+      <PublicStatus
+        title="Pas encore de session publiée"
+        text="Les traces apparaîtront ici dès que des bateaux auront été ajoutés à l’événement."
+      />
     );
   }
 
   if (!loadingTelemetry && selectedCount > 0 && !hasAnyTelemetryPoints) {
     return (
-      <div className="dark bg-background text-foreground w-screen app-shell flex items-center justify-center">
-        <div className="text-center">
-          {eventLive ? (
-            <>
-              <div className="text-xl font-semibold mb-2">En attente des premières positions</div>
-              <div className="text-sm text-muted-foreground">
-                La carte s'affichera dès qu'un bateau aura envoyé sa position.
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="text-xl font-semibold mb-2">No telemetry available</div>
-              <div className="text-sm text-muted-foreground">
-                Sessions exist, but no telemetry points were found for this public view.
-              </div>
-            </>
-          )}
-        </div>
-      </div>
+      eventLive ? (
+        <PublicStatus
+          title="En attente des premières positions"
+          text="La carte s’affichera dès qu’un bateau aura envoyé sa position."
+        />
+      ) : (
+        <PublicStatus
+          title="Aucune position enregistrée"
+          text="Les sessions existent, mais aucun point GPS n’a encore été reçu."
+        />
+      )
     );
   }
 
   if (loadingTelemetry || globalTMin === null || globalTMax === null) {
     return (
-      <div className="dark bg-background text-foreground w-screen app-shell flex items-center justify-center">
-        <LoadingSpinner size="lg" text="Loading telemetry..." />
-      </div>
+      <PublicStatus>
+        <LoadingSpinner size="lg" text="Chargement des traces…" />
+      </PublicStatus>
     );
   }
 
   return (
     <div className="dark bg-background text-foreground w-screen app-shell overflow-hidden flex flex-col">
-      <div className="absolute top-2 left-12 right-[4.75rem] sm:top-4 sm:left-16 sm:right-auto sm:max-w-[calc(100%-4rem-14rem)] z-[1000] flex flex-wrap items-center gap-2 sm:gap-3 glass border rounded-lg px-2.5 py-1.5 sm:px-3 sm:py-2">
-        <div className="min-w-0">
-          <div className="font-semibold truncate">{event.title}</div>
-          <div className="text-xs text-muted-foreground truncate">
-            {event.starts_at ? new Date(event.starts_at).toLocaleString() : 'N/A'} - {event.ends_at ? new Date(event.ends_at).toLocaleString() : 'N/A'}
+      {/*
+        En-tete public : meme grammaire que la barre du replay (pastilles
+        vitrees sur une ligne). L'evenement remplace le bouton retour ; les
+        dates disparaissent sur telephone pour laisser la carte respirer.
+      */}
+      <div className="absolute left-2 right-14 top-2 z-[1000] flex items-center gap-2 safe-top sm:left-16 sm:right-auto sm:top-3 sm:max-w-[calc(100%-4rem-15rem)]">
+        <div className="glass flex h-10 min-w-0 items-center gap-2.5 rounded-full border py-1 pl-1.5 pr-4">
+          <BrandMark className="h-7 w-7 rounded-full" />
+          <div className="min-w-0 leading-tight">
+            <div className="truncate text-sm font-semibold">{event.title}</div>
+            {event.starts_at && (
+              <div className="hidden truncate text-[11px] text-muted-foreground tabular-nums sm:block">
+                {formatDateRange(event.starts_at, event.ends_at ?? null)}
+              </div>
+            )}
           </div>
         </div>
-        {eventLive && (following ? (
-          <div
-            className="flex items-center gap-1.5 text-xs font-semibold text-red-600"
-            title={liveLastUpdate ? `Mis à jour à ${new Date(liveLastUpdate).toLocaleTimeString()}` : undefined}
-          >
-            <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse" aria-hidden="true" />
-            En direct
-          </div>
-        ) : (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 px-3"
-            onClick={() => setFollowLive(true)}
-          >
-            Revenir au direct
-          </Button>
-        ))}
-        <div className="flex gap-1 rounded-md border bg-background p-0.5">
-          <Button
-            type="button"
-            variant={replayViewMode === '2d' ? 'default' : 'ghost'}
-            size="sm"
-            className="h-8 px-3"
-            onClick={() => setReplayViewMode('2d')}
-          >
-            <span className="sm:hidden">2D</span><span className="hidden sm:inline">Vue 2D</span>
-          </Button>
-          <Button
-            type="button"
-            variant={replayViewMode === '3d' ? 'default' : 'ghost'}
-            size="sm"
-            className="h-8 px-3"
-            onClick={() => setReplayViewMode('3d')}
-          >
-            <span className="sm:hidden">3D</span><span className="hidden sm:inline">Vue 3D</span>
-          </Button>
+        {eventLive &&
+          (following ? (
+            <div
+              className="glass flex h-10 flex-none items-center gap-1.5 rounded-full border border-red-400/40 px-3 text-xs font-semibold text-red-300"
+              title={liveLastUpdate ? `Mis à jour à ${new Date(liveLastUpdate).toLocaleTimeString('fr-FR')}` : undefined}
+            >
+              <span className="h-2 w-2 rounded-full bg-red-400 animate-pulse" aria-hidden="true" />
+              <span className="hidden sm:inline">En direct</span>
+              <span className="sm:hidden">Live</span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setFollowLive(true)}
+              className="glass flex h-10 flex-none items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors hover:bg-accent/60"
+            >
+              <span className="h-2 w-2 rounded-full bg-red-400/60" aria-hidden="true" />
+              <span className="hidden sm:inline">Revenir au direct</span>
+              <span className="sm:hidden">Direct</span>
+            </button>
+          ))}
+        <div className="glass flex h-10 flex-none items-center rounded-full border p-1" role="group" aria-label="Vue">
+          {(['2d', '3d'] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              aria-pressed={replayViewMode === mode}
+              onClick={() => setReplayViewMode(mode)}
+              className={cn(
+                'h-8 rounded-full px-3.5 text-sm font-semibold transition-colors',
+                replayViewMode === mode ? 'bg-primary text-primary-foreground' : 'text-foreground/80 hover:text-foreground'
+              )}
+            >
+              {mode.toUpperCase()}
+            </button>
+          ))}
         </div>
-        <FullscreenButton />
+        <FullscreenButton className="glass h-10 w-10 flex-none rounded-full" />
       </div>
 
       <div className="flex-1 relative">
@@ -383,3 +376,21 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
   );
 }
 
+/** Ecran d'attente ou d'erreur de la page publique, au style des pages hors carte. */
+function PublicStatus({ title, text, children }: { title?: string; text?: string; children?: ReactNode }) {
+  return (
+    <div className="relative w-screen app-shell flex items-center justify-center px-5">
+      <WindBackdrop />
+      <div className="relative flex w-full max-w-md flex-col items-center gap-5 text-center">
+        <BrandWordmark />
+        {children}
+        {title && (
+          <div className="glass w-full rounded-2xl border p-6">
+            <div className="text-lg font-semibold">{title}</div>
+            {text && <p className="mt-1.5 text-sm text-muted-foreground">{text}</p>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -69,6 +69,7 @@ interface BoatListWidgetProps {
 
 export function BoatListWidget({ currentTime, onCenterBoat }: BoatListWidgetProps) {
   const sessions = useReplayStore((state) => state.sessions);
+  const liveMode = useReplayStore((state) => state.liveMode);
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
   const focusSessionId = useReplayStore((state) => state.focusSessionId);
   const setFocusSession = useReplayStore((state) => state.setFocusSession);
@@ -85,7 +86,7 @@ export function BoatListWidget({ currentTime, onCenterBoat }: BoatListWidgetProp
         if (!session) return null;
 
         // Check if session is active at currentTime
-        if (currentTime < session.tMin || currentTime > session.tMax) {
+        if (currentTime < session.tMin || (currentTime > session.tMax && !liveMode)) {
           return {
             sessionId,
             name: session.name,
@@ -108,7 +109,7 @@ export function BoatListWidget({ currentTime, onCenterBoat }: BoatListWidgetProp
         };
       })
       .filter((b): b is NonNullable<typeof b> => b !== null);
-  }, [selectedSessionIds, sessions, currentTime]);
+  }, [selectedSessionIds, sessions, currentTime, liveMode]);
 
   if (collapsed) {
     return (

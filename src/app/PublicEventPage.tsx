@@ -12,7 +12,20 @@ import { FullscreenButton } from '@/components/replay/FullscreenButton';
 import { Button } from '@/components/ui/button';
 import { usePublicEvent } from '@/hooks/usePublicEvent';
 import { usePublicTelemetry } from '@/hooks/usePublicTelemetry';
+import { usePublicLiveTelemetry } from '@/hooks/usePublicLiveTelemetry';
+import type { PublicEventMeta } from '@/lib/supabase-public';
 import type { Crossing, Gate, Result } from '@/types';
+
+// Marge autour des bornes de l'evenement : les bateaux partent souvent avant
+// l'heure officielle, et les telephones vident leur file apres la fin.
+const LIVE_MARGIN_MS = 60 * 60 * 1000;
+
+function isEventLive(event: PublicEventMeta): boolean {
+  const now = Date.now();
+  if (event.starts_at && now < new Date(event.starts_at).getTime() - LIVE_MARGIN_MS) return false;
+  if (event.ends_at && now > new Date(event.ends_at).getTime() + LIVE_MARGIN_MS) return false;
+  return true;
+}
 
 // La vue 3D tire three.js, drei et un modele GLB de ~21 Mo : chargee a la demande
 // pour ne pas peser sur le premier rendu de la carte.
@@ -84,11 +97,43 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
 
   const { loading: loadingTelemetry, error: telemetryError } = usePublicTelemetry(token);
 
+  // Le direct est propose pendant l'evenement : les points arrivent encore.
+  const eventLive = event !== null && isEventLive(event);
+  const { lastUpdate: liveLastUpdate } = usePublicLiveTelemetry(
+    token,
+    eventLive,
+    event !== null && !loadingTelemetry
+  );
+  // Suivre le direct : l'horloge colle au point le plus recent. Toucher a la
+  // timeline en sort ; le bouton « Revenir au direct » y ramene.
+  const [followLive, setFollowLive] = useState(true);
+  const setLiveMode = useReplayStore((state) => state.setLiveMode);
+  useEffect(() => {
+    setLiveMode(eventLive);
+  }, [eventLive, setLiveMode]);
+
   const clock = useReplayClock(
     globalTMin ?? 0,
     globalTMin ?? 0,
     globalTMax ?? (globalTMin ?? 0),
     speed
+  );
+
+  const following = eventLive && followLive;
+  useEffect(() => {
+    if (following && globalTMax !== null) {
+      clock.setCurrentTime(globalTMax);
+    }
+    // clock.setCurrentTime est stable ; suivre globalTMax suffit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [following, globalTMax]);
+
+  const handleUserSetCurrentTime = useCallback(
+    (time: number) => {
+      setFollowLive(false);
+      clock.setCurrentTime(time);
+    },
+    [clock]
   );
 
   const clockInitializedRef = useRef(false);
@@ -159,10 +204,21 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
     return (
       <div className="dark bg-background text-foreground w-screen app-shell flex items-center justify-center">
         <div className="text-center">
-          <div className="text-xl font-semibold mb-2">No telemetry available</div>
-          <div className="text-sm text-muted-foreground">
-            Sessions exist, but no telemetry points were found for this public view.
-          </div>
+          {eventLive ? (
+            <>
+              <div className="text-xl font-semibold mb-2">En attente des premières positions</div>
+              <div className="text-sm text-muted-foreground">
+                La carte s'affichera dès qu'un bateau aura envoyé sa position.
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-xl font-semibold mb-2">No telemetry available</div>
+              <div className="text-sm text-muted-foreground">
+                Sessions exist, but no telemetry points were found for this public view.
+              </div>
+            </>
+          )}
         </div>
       </div>
     );
@@ -185,6 +241,25 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
             {event.starts_at ? new Date(event.starts_at).toLocaleString() : 'N/A'} - {event.ends_at ? new Date(event.ends_at).toLocaleString() : 'N/A'}
           </div>
         </div>
+        {eventLive && (following ? (
+          <div
+            className="flex items-center gap-1.5 text-xs font-semibold text-red-600"
+            title={liveLastUpdate ? `Mis à jour à ${new Date(liveLastUpdate).toLocaleTimeString()}` : undefined}
+          >
+            <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse" aria-hidden="true" />
+            En direct
+          </div>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 px-3"
+            onClick={() => setFollowLive(true)}
+          >
+            Revenir au direct
+          </Button>
+        ))}
         <div className="flex gap-1 rounded-md border bg-background p-0.5">
           <Button
             type="button"
@@ -305,7 +380,7 @@ export function PublicEventPage({ token }: PublicEventPageProps) {
         )}
       </div>
 
-      <ReplayControls currentTime={clock.currentTime} setCurrentTime={clock.setCurrentTime} />
+      <ReplayControls currentTime={clock.currentTime} setCurrentTime={handleUserSetCurrentTime} />
     </div>
   );
 }

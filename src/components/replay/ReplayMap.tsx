@@ -490,6 +490,8 @@ const ReplayMapContent = memo(function ReplayMapContent({
   const setFocusSession = useReplayStore((state) => state.setFocusSession);
   const sessions = useReplayStore((state) => state.sessions);
   const windowStartTime = useReplayStore((state) => state.windowStartTime);
+  // En direct, un bateau reste a sa derniere position au-dela de son dernier point.
+  const liveMode = useReplayStore((state) => state.liveMode);
   
   const [rulerStart, setRulerStart] = useState<[number, number] | null>(null);
   const [rulerEnd, setRulerEnd] = useState<[number, number] | null>(null);
@@ -658,8 +660,10 @@ const ReplayMapContent = memo(function ReplayMapContent({
         }
       }
 
-      // Le bateau n'est affiche que pendant sa session.
-      const onWater = sample !== null && currentTime <= session.tMax;
+      // Le bateau n'est affiche que pendant sa session. En direct, il reste a
+      // sa derniere position au-dela de son dernier point (reseau coupe, point
+      // pas encore arrive) : sampleTrackAt renvoie alors ce dernier point.
+      const onWater = sample !== null && (currentTime <= session.tMax || liveMode);
 
       return {
         sessionId,
@@ -673,7 +677,7 @@ const ReplayMapContent = memo(function ReplayMapContent({
         isLoading: false,
       };
     });
-  }, [sessionsToDisplay, sessions, currentTime, focusSessionId, windowStartTime]);
+  }, [sessionsToDisplay, sessions, currentTime, focusSessionId, windowStartTime, liveMode]);
 
   // Calculate distance for ruler tool
   const rulerDistance = useMemo(() => {

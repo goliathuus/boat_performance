@@ -30,7 +30,26 @@ function findLastPoint(points: TrackPoint[], currentTime: number): TrackPoint | 
   // If no point found, return null (currentTime is before all points)
   return null;
 }
-import { computeBounds } from '@/domain/tracks';
+import { computeBounds, sampleTrackAt } from '@/domain/tracks';
+
+// References stables : un tableau vide neuf a chaque image relancerait les effets.
+const EMPTY_POSITIONS: Array<[number, number]> = [];
+// Styles de trace mis en cache : un objet neuf a chaque image ferait reappliquer
+// le style par Leaflet sur toute la trace.
+const trackStyleCache = new Map<string, { casing: L.PathOptions; line: L.PathOptions }>();
+function trackStyles(color: string, focused: boolean) {
+  const key = `${color}|${focused}`;
+  let styles = trackStyleCache.get(key);
+  if (!styles) {
+    styles = {
+      casing: { color: '#07090d', weight: focused ? 6 : 4, opacity: 0.55, lineCap: 'round', lineJoin: 'round' },
+      line: { color, weight: focused ? 3 : 2, opacity: focused ? 1 : 0.92, lineCap: 'round', lineJoin: 'round' },
+    };
+    trackStyleCache.set(key, styles);
+  }
+  return styles;
+}
+const EMPTY_RANKING_BOATS: Array<{ id: string; name: string; points: TrackPoint[] }> = [];
 import { formatTime } from '@/lib/time';
 import { WindLayer } from '@/components/map/WindLayer';
 import { WindLegend } from '@/components/map/WindLegend';
@@ -148,9 +167,12 @@ interface BoatMarkerProps {
 const boatIconCache = new Map<string, L.DivIcon>();
 
 function getBoatIcon(cog: number | undefined, color: string, name: string): L.DivIcon {
-  const key = `${color}-${cog ?? 'none'}-${name}`;
+  // Cap arrondi a 2° : avec un cap interpole, une cle exacte ferait grossir le
+  // cache sans fin et reconstruirait l'icone a chaque image.
+  const rounded = cog === undefined ? undefined : (Math.round(cog / 2) * 2) % 360;
+  const key = `${color}-${rounded ?? 'none'}-${name}`;
   if (!boatIconCache.has(key)) {
-    boatIconCache.set(key, createBoatIcon(cog ?? undefined, color, name));
+    boatIconCache.set(key, createBoatIcon(rounded, color, name));
   }
   return boatIconCache.get(key)!;
 }
@@ -552,26 +574,9 @@ const ReplayMapContent = memo(function ReplayMapContent({
     return computeBounds(boatTracks);
   }, [sessionsToDisplay, sessions]);
 
-  // Render preview and detail polylines + markers
-  // Throttle currentTime to reduce re-renders (update every 200ms instead of every frame)
-  // Use useRef to track last throttled value and avoid unnecessary recalculations
-  const lastThrottledTimeRef = useRef<number | null>(null);
-  const throttledCurrentTime = useMemo(() => {
-    if (currentTime === null) {
-      lastThrottledTimeRef.current = null;
-      return null;
-    }
-    // Round to nearest 200ms to reduce re-renders and prevent flickering
-    const throttled = Math.floor(currentTime / 200) * 200;
-    
-    // Only update if the throttled value actually changed
-    if (lastThrottledTimeRef.current === throttled) {
-      return lastThrottledTimeRef.current;
-    }
-    
-    lastThrottledTimeRef.current = throttled;
-    return throttled;
-  }, [currentTime]);
+  // Temps arrondi a la seconde pour ce qui n'a pas besoin de suivre chaque
+  // image : horodatage des bulles, classement aux portes.
+  const throttledCurrentTime = Math.floor(currentTime / 1000) * 1000;
 
   // Helper function for binary search to find the first point >= time
   function binarySearchStart(points: Array<{ t: number }>, time: number): number {
@@ -591,17 +596,25 @@ const ReplayMapContent = memo(function ReplayMapContent({
     return result;
   }
 
+  // Positions de trace par bateau, reutilisees tant que la fenetre de points
+  // [debut, dernier point passe] ne change pas : Leaflet ne redessine la trace
+  // complete que lorsqu'un nouveau point GPS est franchi, pas a chaque image.
+  const trackCacheRef = useRef(
+    new Map<string, { points: TrackPoint[]; start: number; end: number; positions: Array<[number, number]> }>()
+  );
+
   const mapElements = useMemo(() => {
-    // Display all selected sessions, even if they don't have points yet
+    const cache = trackCacheRef.current;
     return sessionsToDisplay.map((sessionId) => {
       const session = sessions.get(sessionId);
-      
+
       // If session doesn't exist in store yet, return minimal info (will show nothing but won't crash)
       if (!session) {
         return {
           sessionId,
           session: null,
-          progressiveTrackPositions: [],
+          trackPositions: EMPTY_POSITIONS,
+          headPositions: null,
           markerPosition: null,
           markerSpeed: null,
           markerCog: null,
@@ -611,122 +624,56 @@ const ReplayMapContent = memo(function ReplayMapContent({
       }
 
       const isFocused = focusSessionId === sessionId;
+      const points = session.points;
 
-      // Progressive track: points within [windowStartTime, currentTime] window
-      // Only show track if it intersects with the window
-      // Optimized: use binary search to find cutoff points instead of filtering all points
-      let progressiveTrackPositions: Array<[number, number]> = [];
-      
-      if (session.points.length > 0) {
-        // Check if session intersects with the window
-        const hasWindow = windowStartTime !== null && throttledCurrentTime !== null;
-        let shouldShowTrack = true;
-        
-        if (hasWindow) {
-          // If both windowStartTime and currentTime are defined, check if session intersects
-          if (session.tMax < windowStartTime || session.tMin > throttledCurrentTime) {
-            // Session is completely outside the window, don't show it
-            shouldShowTrack = false;
-          }
-        }
-        
-        if (shouldShowTrack) {
-          let startIndex = 0;
-          let endIndex: number | 'all' = 'all';
-          
-          // Determine endIndex based on throttledCurrentTime
-          if (throttledCurrentTime !== null && throttledCurrentTime < session.tMin) {
-            // Don't show track if cursor is before session start
-            shouldShowTrack = false;
-          } else if (throttledCurrentTime === null) {
-            // If currentTime is null, check if windowStartTime is after session end
-            if (windowStartTime !== null && windowStartTime > session.tMax) {
-              shouldShowTrack = false;
-            } else {
-              endIndex = session.points.length;
-            }
+      // Position interpolee entre les deux points qui encadrent l'instant : le
+      // bateau glisse d'un point GPS au suivant au lieu de sauter.
+      const sample = points.length > 0 ? sampleTrackAt(points, currentTime) : null;
+
+      let trackPositions = EMPTY_POSITIONS;
+      let headPositions: Array<[number, number]> | null = null;
+      const windowOk = windowStartTime === null || windowStartTime <= session.tMax;
+      if (sample && windowOk) {
+        const start =
+          windowStartTime !== null && windowStartTime > session.tMin
+            ? binarySearchStart(points, windowStartTime)
+            : 0;
+        const end = sample.index + 1; // exclusif
+        if (end > start) {
+          const hit = cache.get(sessionId);
+          if (hit && hit.points === points && hit.start === start && hit.end === end) {
+            trackPositions = hit.positions;
           } else {
-            // Binary search to find the last point where t <= currentTime
-            let left = 0;
-            let right = session.points.length - 1;
-            endIndex = session.points.length;
-            
-            while (left <= right) {
-              const mid = Math.floor((left + right) / 2);
-              if (session.points[mid].t <= throttledCurrentTime) {
-                endIndex = mid + 1;
-                left = mid + 1;
-              } else {
-                right = mid - 1;
-              }
-            }
+            trackPositions = points.slice(start, end).map((p) => [p.lat, p.lon] as [number, number]);
+            cache.set(sessionId, { points, start, end, positions: trackPositions });
           }
-
-          if (shouldShowTrack) {
-            // Determine startIndex based on windowStartTime
-            if (windowStartTime !== null) {
-              if (windowStartTime > session.tMax) {
-                // windowStartTime is after session end, don't show
-                shouldShowTrack = false;
-              } else if (windowStartTime > session.tMin) {
-                startIndex = binarySearchStart(session.points, windowStartTime);
-              }
-            }
-
-            if (shouldShowTrack) {
-              // Check if there are any points in the window
-              if (endIndex !== 'all' && startIndex >= endIndex) {
-                // No points in the window
-                shouldShowTrack = false;
-              } else if (endIndex === 'all' && windowStartTime !== null && startIndex >= session.points.length) {
-                // windowStartTime is after all points
-                shouldShowTrack = false;
-              }
-            }
-
-            if (shouldShowTrack) {
-              // Slice points within the [windowStartTime, currentTime] range
-              if (endIndex === 'all') {
-                // Show from windowStartTime to end when currentTime is not set yet
-                progressiveTrackPositions = session.points
-                  .slice(startIndex)
-                  .map((p) => [p.lat, p.lon] as [number, number]);
-              } else {
-                // Slice points within the window [windowStartTime, currentTime]
-                progressiveTrackPositions = session.points
-                  .slice(startIndex, endIndex)
-                  .map((p) => [p.lat, p.lon] as [number, number]);
-              }
-            }
+          // Segment de tete : du dernier point franchi jusqu'au bateau.
+          const last = points[sample.index];
+          if (last.lat !== sample.lat || last.lon !== sample.lon) {
+            headPositions = [
+              [last.lat, last.lon],
+              [sample.lat, sample.lon],
+            ];
           }
         }
       }
 
-      // Current position marker (closest point)
-      let markerPosition: [number, number] | null = null;
-      let markerSpeed: number | null = null;
-      let markerCog: number | null = null;
-      if (throttledCurrentTime !== null && throttledCurrentTime >= session.tMin && throttledCurrentTime <= session.tMax) {
-        const lastPoint = findLastPoint(session.points, throttledCurrentTime);
-        if (lastPoint) {
-          markerPosition = [lastPoint.lat, lastPoint.lon];
-          markerSpeed = lastPoint.sog ?? null;
-          markerCog = lastPoint.cog ?? null;
-        }
-      }
+      // Le bateau n'est affiche que pendant sa session.
+      const onWater = sample !== null && currentTime <= session.tMax;
 
       return {
         sessionId,
         session,
-        progressiveTrackPositions,
-        markerPosition,
-        markerSpeed,
-        markerCog,
+        trackPositions,
+        headPositions,
+        markerPosition: onWater ? ([sample.lat, sample.lon] as [number, number]) : null,
+        markerSpeed: onWater ? sample.sog : null,
+        markerCog: onWater ? sample.cog : null,
         isFocused,
         isLoading: false,
       };
     });
-  }, [sessionsToDisplay, sessions, throttledCurrentTime, focusSessionId, windowStartTime]);
+  }, [sessionsToDisplay, sessions, currentTime, focusSessionId, windowStartTime]);
 
   // Calculate distance for ruler tool
   const rulerDistance = useMemo(() => {
@@ -738,25 +685,24 @@ const ReplayMapContent = memo(function ReplayMapContent({
 
   // Prepare boats for ranking calculation - filter points by time window
   const boatsForRanking = useMemo(() => {
+    if (!gateStart || !gateFinish) return EMPTY_RANKING_BOATS;
     return sessionsToDisplay
       .map((sessionId) => {
         const session = sessions.get(sessionId);
         if (!session || session.points.length === 0) return null;
-        
+
         // Filter points to only include those between windowStartTime and currentTime
         let filteredPoints = session.points;
-        if (windowStartTime !== null && throttledCurrentTime !== null) {
+        if (windowStartTime !== null) {
           filteredPoints = session.points.filter(
             (p) => p.t >= windowStartTime && p.t <= throttledCurrentTime
           );
-        } else if (windowStartTime !== null) {
-          filteredPoints = session.points.filter((p) => p.t >= windowStartTime);
-        } else if (throttledCurrentTime !== null) {
+        } else {
           filteredPoints = session.points.filter((p) => p.t <= throttledCurrentTime);
         }
-        
+
         if (filteredPoints.length === 0) return null;
-        
+
         return {
           id: session.id,
           name: session.name,
@@ -764,7 +710,7 @@ const ReplayMapContent = memo(function ReplayMapContent({
         };
       })
       .filter((b): b is NonNullable<typeof b> => b !== null);
-  }, [sessionsToDisplay, sessions, windowStartTime, throttledCurrentTime]);
+  }, [gateStart, gateFinish, sessionsToDisplay, sessions, windowStartTime, throttledCurrentTime]);
 
   const handleRankingsComputed = useCallback((results: Result[], crossings: Map<string, { start?: Crossing; finish?: Crossing }>) => {
     onSetRankings(results);
@@ -915,43 +861,30 @@ const ReplayMapContent = memo(function ReplayMapContent({
       )}
 
       {/* Render progressive track + markers */}
-      {mapElements.map(({ sessionId, session, progressiveTrackPositions, markerPosition, markerSpeed, markerCog, isFocused, isLoading }) => {
+      {mapElements.map(({ sessionId, session, trackPositions, headPositions, markerPosition, markerSpeed, markerCog, isFocused, isLoading }) => {
         // Skip rendering if session is still loading (no session data yet)
         if (isLoading || !session) {
           return null;
         }
 
+        const { casing, line } = trackStyles(session.color, isFocused);
+
         return (
           <Fragment key={sessionId}>
-            {/* Progressive track (all points up to currentTime) - simple color, no SOG coloring */}
-            {/* Focused session has thicker, more opaque track */}
-            {/* Show track even if it has fewer than 2 points (might be loading) */}
             {/* Liseré sombre sous la trace : la detache du champ de vent colore. */}
-            {progressiveTrackPositions.length >= 2 ? (
+            {trackPositions.length >= 2 && (
               <>
-                <Polyline
-                  positions={progressiveTrackPositions}
-                  interactive={false}
-                  pathOptions={{
-                    color: '#07090d',
-                    weight: isFocused ? 6 : 4,
-                    opacity: 0.55,
-                    lineCap: 'round',
-                    lineJoin: 'round',
-                  }}
-                />
-                <Polyline
-                  positions={progressiveTrackPositions}
-                  pathOptions={{
-                    color: session.color,
-                    weight: isFocused ? 3 : 2,
-                    opacity: isFocused ? 1 : 0.92,
-                    lineCap: 'round',
-                    lineJoin: 'round',
-                  }}
-                />
+                <Polyline positions={trackPositions} interactive={false} pathOptions={casing} />
+                <Polyline positions={trackPositions} pathOptions={line} />
               </>
-            ) : null}
+            )}
+            {/* Dernier troncon, du point franchi au bateau : seul redessine a chaque image. */}
+            {headPositions && (
+              <>
+                <Polyline positions={headPositions} interactive={false} pathOptions={casing} />
+                <Polyline positions={headPositions} interactive={false} pathOptions={line} />
+              </>
+            )}
 
             {/* Current position marker (oriented boat icon) */}
             {markerPosition && (

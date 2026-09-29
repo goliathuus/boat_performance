@@ -169,6 +169,66 @@ export function interpolatePosition(
 }
 
 /**
+ * Index du dernier point dont t <= `t`, par dichotomie ; -1 si `t` precede
+ * tous les points. Les points sont tries par temps croissant.
+ */
+export function lastIndexAtOrBefore(points: TrackPoint[], t: number): number {
+  let lo = 0;
+  let hi = points.length - 1;
+  let found = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (points[mid].t <= t) {
+      found = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return found;
+}
+
+export type TrackSample = {
+  lat: number;
+  lon: number;
+  sog: number | null;
+  cog: number | null;
+  /** Dernier point reel a ou avant l'instant demande. */
+  index: number;
+};
+
+/**
+ * Position d'un bateau a l'instant `t`, interpolee entre les deux points qui
+ * l'encadrent. Pensee pour etre appelee a chaque image : dichotomie en
+ * O(log n), sans allocation de TrackPoint.
+ *
+ * Le cap est interpole par le plus court arc (350° -> 10° passe par 0°).
+ * Au-dela du dernier point, le bateau reste sur ce point ; avant le premier,
+ * il n'existe pas encore (null).
+ */
+export function sampleTrackAt(points: TrackPoint[], t: number): TrackSample | null {
+  const i = lastIndexAtOrBefore(points, t);
+  if (i < 0) return null;
+  const p1 = points[i];
+  const p2 = points[i + 1];
+  if (!p2 || p2.t <= p1.t) {
+    return { lat: p1.lat, lon: p1.lon, sog: p1.sog ?? null, cog: p1.cog ?? null, index: i };
+  }
+  const r = (t - p1.t) / (p2.t - p1.t);
+  const sog =
+    p1.sog !== undefined && p2.sog !== undefined ? p1.sog + (p2.sog - p1.sog) * r : (p1.sog ?? null);
+  const cog =
+    p1.cog !== undefined && p2.cog !== undefined ? interpolateAngle(p1.cog, p2.cog, r) : (p1.cog ?? null);
+  return {
+    lat: p1.lat + (p2.lat - p1.lat) * r,
+    lon: p1.lon + (p2.lon - p1.lon) * r,
+    sog,
+    cog,
+    index: i,
+  };
+}
+
+/**
  * Get points up to a given timestamp
  */
 export function getPointsUntilTime(boat: BoatTrack, t: number): TrackPoint[] {

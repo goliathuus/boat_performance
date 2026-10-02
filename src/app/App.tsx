@@ -131,7 +131,9 @@ function AuthenticatedApp() {
   }, [selectedSessionIds.length, page, isCheckingAuth]);
 
   // Synchronise l'URL hash avec la page courante (permet de retrouver l'état après rechargement)
+  // Ne rien faire pendant isCheckingAuth : le hash doit rester intact pour que checkAuth puisse le lire
   useEffect(() => {
+    if (isCheckingAuth) return;
     if (page === 'replay' && selectedSessionIds.length > 0) {
       const newHash = `#replay?s=${selectedSessionIds.join(',')}`;
       if (window.location.hash !== newHash) {
@@ -142,7 +144,7 @@ function AuthenticatedApp() {
         history.replaceState(null, '', window.location.pathname + window.location.search);
       }
     }
-  }, [page, selectedSessionIds]);
+  }, [page, selectedSessionIds, isCheckingAuth]);
 
   const handleLoginSuccess = () => {
     setPage('sessions');

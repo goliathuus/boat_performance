@@ -26,19 +26,18 @@ const RulerIcon = () => (
   </svg>
 );
 
-// Boat list icon SVG
+// Boat list icon SVG — podium 1re/2e/3e place
 const BoatListIcon = () => (
   <svg
     width="20"
     height="20"
     viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
+    fill="currentColor"
+    stroke="none"
   >
-    <path d="M4 6h16M4 12h16M4 18h16" />
+    <rect x="2"  y="11" width="6" height="9" rx="1" />
+    <rect x="9"  y="6"  width="6" height="14" rx="1" />
+    <rect x="16" y="13" width="6" height="7" rx="1" />
   </svg>
 );
 

@@ -2,6 +2,25 @@ import { useReplayStore } from '@/state/useReplayStore';
 import type { Gate, Result, Crossing } from '@/types';
 import { formatTime } from '@/lib/time';
 
+const EyeIcon = ({ off }: { off: boolean }) => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {off ? (
+      <>
+        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+        <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+        <line x1="1" y1="1" x2="23" y2="23" />
+      </>
+    ) : (
+      <>
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+        <circle cx="12" cy="12" r="3" />
+      </>
+    )}
+  </svg>
+);
+
 interface GateRankingWidgetProps {
   gateStart: Gate | null;
   gateFinish: Gate | null;
@@ -40,6 +59,8 @@ export function GateRankingWidget({
   onSetSelectedBoatId,
 }: GateRankingWidgetProps) {
   const sessions = useReplayStore((state) => state.sessions);
+  const hiddenSessionIds = useReplayStore((state) => state.hiddenSessionIds);
+  const toggleHiddenSession = useReplayStore((state) => state.toggleHiddenSession);
 
   const handleReset = () => {
     onSetGateStart(null);
@@ -127,6 +148,7 @@ export function GateRankingWidget({
               <thead className="sticky top-0 bg-background border-b">
                 <tr>
                   <th className="text-left p-2 font-semibold text-xs">Rang</th>
+                  <th className="p-2 w-6"></th>
                   <th className="text-left p-2 font-semibold text-xs">Bateau</th>
                   <th className="text-right p-2 font-semibold text-xs">Temps</th>
                   <th className="text-right p-2 font-semibold text-xs">Vit. moy</th>
@@ -140,6 +162,7 @@ export function GateRankingWidget({
               <tbody>
                 {rankings.map((result, index) => {
                   const isSelected = selectedBoatId === result.boatId;
+                  const isHidden = hiddenSessionIds.has(result.boatId);
                   const boatColor = sessions.get(result.boatId)?.color ?? 'transparent';
                   const leaderTime = rankings[0]?.elapsedMs ?? 0;
                   const gap = result.elapsedMs - leaderTime;
@@ -154,13 +177,31 @@ export function GateRankingWidget({
                       onClick={() => onSetSelectedBoatId(result.boatId)}
                       className={`cursor-pointer transition-colors ${
                         index % 2 === 0 ? 'bg-background' : 'bg-muted/30'
-                      } ${
+                      } ${isHidden ? 'opacity-60' : ''} ${
                         isSelected
                           ? 'ring-2 ring-primary bg-accent/50 hover:bg-accent/70'
                           : 'hover:bg-accent/30'
                       }`}
                     >
                       <td className="p-2 font-mono">{index + 1}</td>
+                      <td className="p-1 w-6">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleHiddenSession(result.boatId);
+                          }}
+                          title={isHidden ? 'Afficher la trace' : 'Masquer la trace'}
+                          aria-label={isHidden ? 'Afficher la trace' : 'Masquer la trace'}
+                          className={`grid place-items-center h-5 w-5 rounded border transition-colors ${
+                            isHidden
+                              ? 'bg-muted/50 border-border hover:bg-muted text-muted-foreground'
+                              : 'bg-background/40 border-border hover:bg-accent/30'
+                          }`}
+                        >
+                          <EyeIcon off={isHidden} />
+                        </button>
+                      </td>
                       <td className="p-2">
                         <div className="flex items-center gap-2">
                           <div

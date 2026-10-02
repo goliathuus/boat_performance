@@ -6,6 +6,25 @@ import { downloadCSV, generateCSVFilename } from '@/lib/csv-download';
 import { Button } from '@/components/ui/button';
 import { calculateAverageSOGAndCOG } from '@/domain/tracks';
 
+const EyeIcon = ({ off }: { off: boolean }) => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {off ? (
+      <>
+        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+        <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+        <line x1="1" y1="1" x2="23" y2="23" />
+      </>
+    ) : (
+      <>
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+        <circle cx="12" cy="12" r="3" />
+      </>
+    )}
+  </svg>
+);
+
 // Helper to find the last point at or before currentTime with valid SOG
 function findLastPointWithSOG(points: TrackPoint[], currentTime: number): TrackPoint | null {
   if (points.length === 0) return null;
@@ -33,6 +52,7 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
   const sessions = useReplayStore((state) => state.sessions);
   const selectedSessionIds = useReplayStore((state) => state.selectedSessionIds);
   const hiddenSessionIds = useReplayStore((state) => state.hiddenSessionIds);
+  const toggleHiddenSession = useReplayStore((state) => state.toggleHiddenSession);
   const focusSessionId = useReplayStore((state) => state.focusSessionId);
   const setFocusSession = useReplayStore((state) => state.setFocusSession);
   const windowStartTime = useReplayStore((state) => state.windowStartTime);
@@ -52,8 +72,8 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
   // Calculate current speed and averages for each session
   const boatsWithSpeed = useMemo(() => {
     return selectedSessionIds
-      .filter((id) => !hiddenSessionIds.has(id))
       .map((sessionId) => {
+        const isHidden = hiddenSessionIds.has(sessionId);
         const session = sessions.get(sessionId);
         if (!session) return null;
 
@@ -68,6 +88,7 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
             active: false,
             avgSOG: null,
             avgCOG: null,
+            isHidden,
           };
         }
 
@@ -100,6 +121,7 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
           active: true,
           avgSOG,
           avgCOG,
+          isHidden,
         };
       })
       .filter((b): b is NonNullable<typeof b> => b !== null);
@@ -157,7 +179,7 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
         }}
       >
           <div className="flex items-center justify-between mb-4 flex-shrink-0">
-            <h2 className="text-lg font-semibold">Classement au temps</h2>
+            <h2 className="text-lg font-semibold">Classement</h2>
             <div className="flex items-center gap-2">
               <div className="text-xs text-muted-foreground">
                 {sortedBoats.length} boat{sortedBoats.length !== 1 ? 's' : ''}
@@ -186,7 +208,7 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
           className="flex-1 text-xs h-7"
           title="Sort by average SOG"
         >
-          SOG moyen
+          Selon SOG moy.
         </Button>
         <Button
           variant={sortMode === 'speed' ? 'default' : 'outline'}
@@ -195,7 +217,7 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
           className="flex-1 text-xs h-7"
           title="Sort by instantaneous SOG"
         >
-          SOG instantané
+          Selon SOG inst.
         </Button>
         <Button
           variant={sortMode === 'selection' ? 'default' : 'outline'}
@@ -204,7 +226,7 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
           className="flex-1 text-xs h-7"
           title="Sort by selection order"
         >
-          Selection
+          Selection ?
         </Button>
       </div>
 
@@ -218,6 +240,7 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-card border-b">
               <tr>
+                <th className="p-2 w-6"></th>
                 <th className="text-left p-2 font-semibold text-xs">Nom</th>
                 <th className="text-right p-2 font-semibold text-xs">SOG inst</th>
                 <th className="text-right p-2 font-semibold text-xs">COG inst</th>
@@ -245,13 +268,32 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
                     className={`cursor-pointer transition-colors ${
                       index % 2 === 0 ? 'bg-background' : 'bg-muted/30'
                     } ${
-                      boat.active ? '' : 'opacity-50'
+                      !boat.active || boat.isHidden ? 'opacity-50' : ''
                     } ${
-                      isFocused 
-                        ? 'ring-2 ring-primary bg-accent/50 hover:bg-accent/70' 
+                      isFocused
+                        ? 'ring-2 ring-primary bg-accent/50 hover:bg-accent/70'
                         : 'hover:bg-accent/30'
                     }`}
                   >
+                    {/* Bouton masquer/afficher */}
+                    <td className="p-1 w-6">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleHiddenSession(boat.sessionId);
+                        }}
+                        title={boat.isHidden ? 'Afficher la trace' : 'Masquer la trace'}
+                        aria-label={boat.isHidden ? 'Afficher la trace' : 'Masquer la trace'}
+                        className={`grid place-items-center h-5 w-5 rounded border transition-colors ${
+                          boat.isHidden
+                            ? 'bg-muted/50 border-border hover:bg-muted text-muted-foreground'
+                            : 'bg-background/40 border-border hover:bg-accent/30'
+                        }`}
+                      >
+                        <EyeIcon off={boat.isHidden} />
+                      </button>
+                    </td>
                     {/* Nom du bateau */}
                     <td className="p-2">
                       <div className="flex items-center gap-2">

@@ -11,6 +11,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    host: true, // Écoute sur 0.0.0.0 pour être accessible depuis Windows (WSL2)
+  },
   base: '/', // Base path for Vercel deployment
   build: {
     outDir: 'dist',

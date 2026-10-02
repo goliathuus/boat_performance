@@ -88,16 +88,16 @@ const tools: Tool[] = [
   },
   {
     id: 'boatList',
-    name: 'Classement au temps',
+    name: 'Classements',
     icon: <BoatListIcon />,
-    description: 'Classement selon le temps',
+    description: 'Classements',
     isWidget: true,
   },
   {
     id: 'gateRanking',
     name: 'Classement aux portes',
     icon: <GateRankingIcon />,
-    description: 'Classement selon les gates',
+    description: 'Classement aux portes',
     isWidget: true,
   },
   {

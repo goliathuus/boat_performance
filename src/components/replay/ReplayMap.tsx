@@ -159,6 +159,8 @@ interface BoatMarkerProps {
   name: string;
   speed: number | null;
   cog: number | null;
+  /** Direction du segment parcouru : oriente le triangle. */
+  heading: number | null;
   currentTime: number | null;
   onFocus?: (sessionId: string) => void;
 }
@@ -177,10 +179,12 @@ function getBoatIcon(cog: number | undefined, color: string, name: string): L.Di
   return boatIconCache.get(key)!;
 }
 
-const BoatMarker = memo(function BoatMarker({ position, color, name, speed, cog, currentTime, sessionId, onFocus }: BoatMarkerProps) {
+const BoatMarker = memo(function BoatMarker({ position, color, name, speed, cog, heading, currentTime, sessionId, onFocus }: BoatMarkerProps) {
   if (!position) return null;
 
-  const icon = getBoatIcon(cog ?? undefined, color, name);
+  // Le triangle suit le segment parcouru. L'infobulle continue d'afficher le
+  // COG du point, qui est une donnee distincte.
+  const icon = getBoatIcon(heading ?? cog ?? undefined, color, name);
 
   return (
     <Marker 
@@ -618,6 +622,7 @@ const ReplayMapContent = memo(function ReplayMapContent({
           markerPosition: null,
           markerSpeed: null,
           markerCog: null,
+          markerHeading: null,
           isFocused: false,
           isLoading: true,
         };
@@ -669,6 +674,7 @@ const ReplayMapContent = memo(function ReplayMapContent({
         markerPosition: onWater ? ([sample.lat, sample.lon] as [number, number]) : null,
         markerSpeed: onWater ? sample.sog : null,
         markerCog: onWater ? sample.cog : null,
+        markerHeading: onWater ? sample.heading : null,
         isFocused,
         isLoading: false,
       };
@@ -861,7 +867,7 @@ const ReplayMapContent = memo(function ReplayMapContent({
       )}
 
       {/* Render progressive track + markers */}
-      {mapElements.map(({ sessionId, session, trackPositions, headPositions, markerPosition, markerSpeed, markerCog, isFocused, isLoading }) => {
+      {mapElements.map(({ sessionId, session, trackPositions, headPositions, markerPosition, markerSpeed, markerCog, markerHeading, isFocused, isLoading }) => {
         // Skip rendering if session is still loading (no session data yet)
         if (isLoading || !session) {
           return null;
@@ -896,6 +902,7 @@ const ReplayMapContent = memo(function ReplayMapContent({
                 name={session.name}
                 speed={markerSpeed}
                 cog={markerCog}
+                heading={markerHeading}
                 currentTime={throttledCurrentTime}
                 onFocus={handleBoatFocus}
               />

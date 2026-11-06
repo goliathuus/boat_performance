@@ -129,7 +129,7 @@ export function interpolatePosition(
               ? { sog: p1.sog + (p2.sog - p1.sog) * ratio }
               : {}),
             ...(p1.cog !== undefined && p2.cog !== undefined
-              ? { cog: p1.cog + (p2.cog - p1.cog) * ratio }
+              ? { cog: interpolateAngle(p1.cog, p2.cog, ratio) }
               : {}),
             // Interpolate wind fields
             ...(p1.twd !== undefined && p2.twd !== undefined
@@ -193,9 +193,64 @@ export type TrackSample = {
   lon: number;
   sog: number | null;
   cog: number | null;
+  /**
+   * Direction du deplacement sur le segment parcouru, pour orienter le
+   * bateau. Distincte de `cog`, qui reste la donnee du point (voir
+   * segmentHeadingAt).
+   */
+  heading: number | null;
   /** Dernier point reel a ou avant l'instant demande. */
   index: number;
 };
+
+/** En dessous, un segment ne definit pas de direction : c'est du bruit GPS. */
+const MIN_HEADING_SEGMENT_M = 1;
+/** Nombre de points explores de part et d'autre pour trouver un segment exploitable. */
+const HEADING_SEARCH_LIMIT = 50;
+
+function bearingIfMoving(a: TrackPoint, b: TrackPoint): number | null {
+  if (calculateDistance(a.lat, a.lon, b.lat, b.lon) < MIN_HEADING_SEGMENT_M) return null;
+  return calculateBearing(a.lat, a.lon, b.lat, b.lon);
+}
+
+/**
+ * Cap du bateau sur le segment qu'il parcourt apres le point `i`.
+ *
+ * Comme la position est interpolee entre les deux points qui encadrent
+ * l'instant, le bateau pointe dans la direction qui va de l'un a l'autre.
+ *
+ * On ne lit volontairement pas le champ `cog` des points : il decrit le
+ * segment qui ARRIVE au point, donc avec un segment de retard, et il manque
+ * souvent (premier point, trou de plus de 300 s, CSV agrege sans colonne cog).
+ * Chaque manque faisait pointer le bateau plein nord.
+ *
+ * Bateau immobile sur le segment courant : on garde le dernier cap connu,
+ * sinon celui du premier deplacement a venir. null uniquement si le bateau
+ * ne bouge pas du tout dans la fenetre de recherche.
+ */
+export function segmentHeadingAt(points: TrackPoint[], i: number): number | null {
+  if (i < 0 || i >= points.length) return null;
+
+  // Segment parcouru : du point courant au suivant.
+  if (i + 1 < points.length) {
+    const h = bearingIfMoving(points[i], points[i + 1]);
+    if (h !== null) return h;
+  }
+
+  // Immobile : dernier cap connu, en remontant le temps.
+  for (let k = i; k > 0 && i - k < HEADING_SEARCH_LIMIT; k--) {
+    const h = bearingIfMoving(points[k - 1], points[k]);
+    if (h !== null) return h;
+  }
+
+  // Pas encore parti : cap du premier deplacement a venir.
+  for (let k = i + 1; k + 1 < points.length && k - i < HEADING_SEARCH_LIMIT; k++) {
+    const h = bearingIfMoving(points[k], points[k + 1]);
+    if (h !== null) return h;
+  }
+
+  return null;
+}
 
 /**
  * Position d'un bateau a l'instant `t`, interpolee entre les deux points qui
@@ -211,8 +266,9 @@ export function sampleTrackAt(points: TrackPoint[], t: number): TrackSample | nu
   if (i < 0) return null;
   const p1 = points[i];
   const p2 = points[i + 1];
+  const heading = segmentHeadingAt(points, i);
   if (!p2 || p2.t <= p1.t) {
-    return { lat: p1.lat, lon: p1.lon, sog: p1.sog ?? null, cog: p1.cog ?? null, index: i };
+    return { lat: p1.lat, lon: p1.lon, sog: p1.sog ?? null, cog: p1.cog ?? null, heading, index: i };
   }
   const r = (t - p1.t) / (p2.t - p1.t);
   const sog =
@@ -224,6 +280,7 @@ export function sampleTrackAt(points: TrackPoint[], t: number): TrackSample | nu
     lon: p1.lon + (p2.lon - p1.lon) * r,
     sog,
     cog,
+    heading,
     index: i,
   };
 }

@@ -234,7 +234,7 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
           <div className="overflow-y-auto flex-1 min-h-0">
         {sortedBoats.length === 0 ? (
           <div className="text-center text-muted-foreground py-4 text-sm">
-            No boats selected
+            No boat selected
           </div>
         ) : (
           <table className="w-full text-sm">

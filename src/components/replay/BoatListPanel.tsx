@@ -208,7 +208,7 @@ export function BoatListPanel({ sortMode: propSortMode, currentTime, onCenterBoa
           className="flex-1 text-xs h-7"
           title="Sort by average SOG"
         >
-          Selon SOG moy.
+          Selonn SOG moy.
         </Button>
         <Button
           variant={sortMode === 'speed' ? 'default' : 'outline'}
